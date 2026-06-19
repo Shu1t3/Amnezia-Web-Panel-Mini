@@ -64,7 +64,7 @@ async def startup():
         admin = {
             'id': str(uuid.uuid4()),
             'username': 'admin',
-            'password_hash': hash_password('admin'),
+            'password_hash': await asyncio.to_thread(hash_password, 'admin'),
             'role': 'admin',
             'enabled': True,
             'created_at': datetime.now().isoformat(),
@@ -106,7 +106,7 @@ else:
     application_path = os.path.dirname(__file__)
 
 DB_PATH = os.environ.get('DB_PATH', os.path.join(application_path, 'panel.db'))
-CURRENT_VERSION = "v2.1.0"
+CURRENT_VERSION = "v2.2.0"
 
 
 # ======================== Translations ========================
@@ -316,13 +316,20 @@ async def periodic_background_tasks():
                 conns_by_server.setdefault(sid, []).append(uc)
 
             updates = []
+            tasks = []
             for server in servers:
                 sid = server['server_id']
                 if sid not in conns_by_server:
                     continue
-                server_updates = await asyncio.to_thread(_scrape_server_traffic, server, sid, conns_by_server[sid])
-                if server_updates:
-                    updates.extend(server_updates)
+                tasks.append(asyncio.to_thread(_scrape_server_traffic, server, sid, conns_by_server[sid]))
+
+            if tasks:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for res in results:
+                    if isinstance(res, list):
+                        updates.extend(res)
+                    elif isinstance(res, Exception):
+                        logger.error(f"Background traffic sync server failed: {res}")
 
             to_disable_uids = []
             if updates:
@@ -395,33 +402,7 @@ async def perform_delete_user(user_id: str):
     user = await db.get_user(user_id)
     if not user:
         return False
-    user_conns = await db.get_user_connections(user_id)
-    conns_by_server = {}
-    for uc in user_conns:
-        sid = uc['server_id']
-        conns_by_server.setdefault(sid, []).append(uc)
-
-    def _remove_connections():
-        for sid, conns in conns_by_server.items():
-            server = servers_data.get(sid)
-            if not server:
-                continue
-            ssh = get_ssh(server)
-            ssh.connect()
-            try:
-                for uc in conns:
-                    try:
-                        manager = get_protocol_manager(ssh, uc['protocol'])
-                        _manager_call(manager, 'remove_client', uc['protocol'], uc['client_id'])
-                    except Exception as e:
-                        logger.warning(f"Failed to remove connection {uc['client_id']} during user delete: {e}")
-            finally:
-                ssh.disconnect()
-
-    if conns_by_server:
-        servers_data = {s['server_id']: s for s in await db.get_servers()}
-        await asyncio.to_thread(_remove_connections)
-    await db.delete_user(user_id)
+    await perform_mass_operations(delete_uids=[user_id])
     return True
 
 
@@ -430,28 +411,7 @@ async def perform_toggle_user(user_id: str, enable: bool) -> bool:
     user = await db.get_user(user_id)
     if not user:
         return False
-
-    user['enabled'] = enable
-
-    user_conns = await db.get_user_connections(user_id)
-    servers_map = {s['server_id']: s for s in await db.get_servers()}
-    for uc in user_conns:
-        try:
-            sid = uc['server_id']
-            server = servers_map.get(sid)
-            if not server:
-                continue
-            ssh = get_ssh(server)
-            await asyncio.to_thread(ssh.connect)
-            manager = get_protocol_manager(ssh, uc['protocol'])
-            await asyncio.to_thread(
-                _manager_call, manager, 'toggle_client', uc['protocol'], uc['client_id'], enable
-            )
-            await asyncio.to_thread(ssh.disconnect)
-        except Exception as e:
-            logger.warning(f"Failed to toggle connection {uc['client_id']} during user toggle: {e}")
-
-    await db.update_user(user)
+    await perform_mass_operations(toggle_uids=[(user_id, enable)])
     return True
 
 
@@ -504,6 +464,14 @@ async def perform_mass_operations(delete_uids: List[str] = None, toggle_uids: Li
     tasks = [run_server_ops(sid, ops) for sid, ops in server_ops.items()]
     if tasks:
         await asyncio.gather(*tasks)
+
+    # Invalidate cache for affected servers/protocols
+    from managers.cache import ssh_cache
+    for sid, ops in server_ops.items():
+        for c in ops['delete']:
+            await ssh_cache.invalidate(sid, c['protocol'])
+        for c, _ in ops['toggle']:
+            await ssh_cache.invalidate(sid, c['protocol'])
 
     if delete_uids:
         await db.delete_users(delete_uids)
@@ -838,7 +806,7 @@ async def api_captcha(request: Request):
     request.session['captcha_answer'] = captcha.characters
     
     img_bytes = io.BytesIO()
-    captcha.image.save(img_bytes, format='PNG')
+    await asyncio.to_thread(captcha.image.save, img_bytes, format='PNG')
     img_bytes.seek(0)
     
     return StreamingResponse(img_bytes, media_type="image/png")
@@ -856,7 +824,7 @@ async def api_login(request: Request, req: LoginRequest):
         request.session.pop('captcha_answer', None)
 
     u = await db.get_user_by_username(req.username)
-    if u and verify_password(req.password, u['password_hash']):
+    if u and await asyncio.to_thread(verify_password, req.password, u['password_hash']):
         lang = request.cookies.get('lang', 'ru')
         if not u.get('enabled', True):
             return JSONResponse({'error': _t('account_disabled', lang)}, status_code=403)
@@ -1149,41 +1117,83 @@ async def api_server_stats(request: Request, server_id: int):
             ssh = get_ssh(server)
             ssh.connect()
             try:
-                stats = {}
-                out, _, _ = ssh.run_command(
+                cmd = (
+                    "echo '===CPU==='; "
                     "top -bn1 | grep 'Cpu(s)' | awk '{print $2}' | cut -d'%' -f1 2>/dev/null || "
                     "awk '{u=$2+$4; t=$2+$4+$5; if(NR==1){pu=u;pt=t} else printf \"%.1f\", (u-pu)/(t-pt)*100}' "
-                    "<(grep 'cpu ' /proc/stat) <(sleep 0.5 && grep 'cpu ' /proc/stat) 2>/dev/null"
+                    "<(grep 'cpu ' /proc/stat) <(sleep 0.5 && grep 'cpu ' /proc/stat) 2>/dev/null; "
+                    "echo ''; echo '===RAM==='; "
+                    "free -b | awk 'NR==2{printf \"%s %s\", $3, $2}'; "
+                    "echo ''; echo '===DISK==='; "
+                    "df -B1 / | awk 'NR==2{printf \"%s %s\", $3, $2}'; "
+                    "echo ''; echo '===NET==='; "
+                    "DEV=$(ip route | awk '/default/ {print $5}' | head -1); "
+                    "if [ -n \"$DEV\" ]; then "
+                    "  cat /proc/net/dev | awk -v dev=\"$DEV:\" '$1==dev{printf \"%s %s\", $2, $10}'; "
+                    "else "
+                    "  echo '0 0'; "
+                    "fi; "
+                    "echo ''; echo '===UPTIME==='; "
+                    "uptime -p 2>/dev/null || uptime"
                 )
+                out, _, _ = ssh.run_command(cmd)
+
+                sections = {}
+                current_section = None
+                for line in out.split('\n'):
+                    line = line.strip()
+                    if line.startswith('==='):
+                        current_section = line.strip('=')
+                        sections[current_section] = []
+                    elif current_section:
+                        sections[current_section].append(line)
+
+                stats = {}
+
+                # CPU
                 try:
-                    stats['cpu'] = round(float(out.strip().split('\n')[0]), 1)
-                except (ValueError, IndexError):
-                    stats['cpu'] = 0
-                out, _, _ = ssh.run_command("free -b | awk 'NR==2{printf \"%d %d\", $3, $2}'")
+                    cpu_lines = sections.get('CPU', [])
+                    cpu_val = next((l for l in cpu_lines if l), "0")
+                    stats['cpu'] = round(float(cpu_val), 1)
+                except Exception:
+                    stats['cpu'] = 0.0
+
+                # RAM
                 try:
-                    parts = out.strip().split()
+                    ram_lines = sections.get('RAM', [])
+                    ram_val = next((l for l in ram_lines if l), "0 0")
+                    parts = ram_val.split()
                     used, total = int(parts[0]), int(parts[1])
                     stats.update(ram_used=used, ram_total=total, ram_percent=round(used / total * 100, 1) if total > 0 else 0)
-                except (ValueError, IndexError):
-                    stats.update(ram_used=0, ram_total=0, ram_percent=0)
-                out, _, _ = ssh.run_command("df -B1 / | awk 'NR==2{printf \"%d %d\", $3, $2}'")
+                except Exception:
+                    stats.update(ram_used=0, ram_total=0, ram_percent=0.0)
+
+                # DISK
                 try:
-                    parts = out.strip().split()
+                    disk_lines = sections.get('DISK', [])
+                    disk_val = next((l for l in disk_lines if l), "0 0")
+                    parts = disk_val.split()
                     used, total = int(parts[0]), int(parts[1])
                     stats.update(disk_used=used, disk_total=total, disk_percent=round(used / total * 100, 1) if total > 0 else 0)
-                except (ValueError, IndexError):
-                    stats.update(disk_used=0, disk_total=0, disk_percent=0)
-                out, _, _ = ssh.run_command(
-                    "DEV=$(ip route | awk '/default/ {print $5}' | head -1); "
-                    "cat /proc/net/dev | awk -v dev=\"$DEV:\" '$1==dev{printf \"%d %d\", $2, $10}'"
-                )
+                except Exception:
+                    stats.update(disk_used=0, disk_total=0, disk_percent=0.0)
+
+                # NET
                 try:
-                    parts = out.strip().split()
+                    net_lines = sections.get('NET', [])
+                    net_val = next((l for l in net_lines if l), "0 0")
+                    parts = net_val.split()
                     stats['net_rx'], stats['net_tx'] = int(parts[0]), int(parts[1])
-                except (ValueError, IndexError):
+                except Exception:
                     stats['net_rx'] = stats['net_tx'] = 0
-                out, _, _ = ssh.run_command("uptime -p 2>/dev/null || uptime")
-                stats['uptime'] = out.strip()
+
+                # UPTIME
+                try:
+                    uptime_lines = sections.get('UPTIME', [])
+                    stats['uptime'] = " ".join([l for l in uptime_lines if l]).strip()
+                except Exception:
+                    stats['uptime'] = ""
+
                 return stats
             finally:
                 ssh.disconnect()
@@ -1579,17 +1589,23 @@ async def api_get_connections(request: Request, server_id: int, protocol: str = 
         if not server:
             return JSONResponse({'error': 'Server not found'}, status_code=404)
 
-        def _get_connections():
-            ssh = get_ssh(server)
-            ssh.connect()
-            try:
-                manager = get_protocol_manager(ssh, protocol)
-                clients = _manager_call(manager, 'get_clients', protocol)
-                return clients
-            finally:
-                ssh.disconnect()
+        from managers.cache import ssh_cache
+        cached_clients = await ssh_cache.get_clients(server_id, protocol)
+        if cached_clients is not None:
+            clients = cached_clients
+        else:
+            def _get_connections():
+                ssh = get_ssh(server)
+                ssh.connect()
+                try:
+                    manager = get_protocol_manager(ssh, protocol)
+                    clients = _manager_call(manager, 'get_clients', protocol)
+                    return clients
+                finally:
+                    ssh.disconnect()
 
-        clients = await asyncio.to_thread(_get_connections)
+            clients = await asyncio.to_thread(_get_connections)
+            await ssh_cache.set_clients(server_id, protocol, clients)
 
         # Enrich with user info from user_connections
         user_conns = await db.get_server_connections(server_id, protocol)
@@ -1664,6 +1680,10 @@ async def api_add_connection(request: Request, server_id: int, req: AddConnectio
             }
             await db.add_connection(conn)
 
+        # Invalidate cache
+        from managers.cache import ssh_cache
+        await ssh_cache.invalidate(server_id, req.protocol)
+
         return result
     except Exception as e:
         logger.exception("Error adding connection")
@@ -1697,6 +1717,11 @@ async def api_remove_connection(request: Request, server_id: int, req: Connectio
         for c in conns:
             if c.get('client_id') == req.client_id:
                 await db.delete_connection(c['id'])
+
+        # Invalidate cache
+        from managers.cache import ssh_cache
+        await ssh_cache.invalidate(server_id, req.protocol)
+
         return {'status': 'success'}
     except Exception as e:
         logger.exception("Error removing connection")
@@ -1732,7 +1757,13 @@ async def api_edit_connection(request: Request, server_id: int, req: EditConnect
             finally:
                 ssh.disconnect()
 
-        return await asyncio.to_thread(_edit_connection)
+        result = await asyncio.to_thread(_edit_connection)
+
+        # Invalidate cache
+        from managers.cache import ssh_cache
+        await ssh_cache.invalidate(server_id, req.protocol)
+
+        return result
     except Exception as e:
         logger.exception("Error editing connection")
         return JSONResponse({'error': str(e)}, status_code=500)
@@ -1799,6 +1830,11 @@ async def api_toggle_connection(request: Request, server_id: int, req: ToggleCon
                 ssh.disconnect()
 
         await asyncio.to_thread(_toggle_connection)
+
+        # Invalidate cache
+        from managers.cache import ssh_cache
+        await ssh_cache.invalidate(server_id, req.protocol)
+
         status = 'enabled' if req.enable else 'disabled'
         return {'status': 'success', 'enabled': req.enable, 'message': f'Connection {status}'}
     except Exception as e:
@@ -1878,7 +1914,7 @@ async def api_add_user(request: Request, req: AddUserRequest):
         new_user = {
             'id': str(uuid.uuid4()),
             'username': req.username,
-            'password_hash': hash_password(req.password),
+            'password_hash': await asyncio.to_thread(hash_password, req.password),
             'role': req.role,
             'telegramId': req.telegramId,
             'email': req.email,
@@ -1971,7 +2007,7 @@ async def api_update_user(request: Request, user_id: str, req: UpdateUserRequest
             user['expiration_date'] = req.expiration_date or None
 
         if req.password:
-            user['password_hash'] = hash_password(req.password)
+            user['password_hash'] = await asyncio.to_thread(hash_password, req.password)
             
         await db.update_user(user)
         
@@ -2068,6 +2104,10 @@ async def api_add_user_connection(request: Request, user_id: str, req: AddUserCo
             }
             await db.add_connection(conn)
 
+        # Invalidate cache
+        from managers.cache import ssh_cache
+        await ssh_cache.invalidate(req.server_id, req.protocol)
+
         resp = {'status': 'success'}
         if result.get('config'):
             resp['config'] = result['config']
@@ -2122,7 +2162,7 @@ async def api_user_share_setup(user_id: str, req: ShareSetupRequest, request: Re
     if not user.get('share_token'):
         user['share_token'] = secrets.token_urlsafe(16)
     if req.password:
-        user['share_password_hash'] = hash_password(req.password)
+        user['share_password_hash'] = await asyncio.to_thread(hash_password, req.password)
     elif req.password == "":
         user['share_password_hash'] = None
         
@@ -2154,7 +2194,7 @@ async def api_share_auth(token: str, req: ShareAuthRequest, request: Request):
     if not user or not user.get('share_enabled'):
         return JSONResponse({'error': 'Link expired or disabled'}, status_code=404)
     
-    if verify_password(req.password, user.get('share_password_hash', '')):
+    if await asyncio.to_thread(verify_password, req.password, user.get('share_password_hash', '')):
         request.session[f'share_auth_{token}'] = True
         return {'status': 'success'}
     else:

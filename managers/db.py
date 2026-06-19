@@ -50,6 +50,7 @@ async def init_db(db_path: str):
         CREATE INDEX IF NOT EXISTS idx_uc_user ON user_connections(user_id);
         CREATE INDEX IF NOT EXISTS idx_uc_server ON user_connections(server_id);
         CREATE INDEX IF NOT EXISTS idx_uc_server_proto ON user_connections(server_id, protocol);
+        CREATE INDEX IF NOT EXISTS idx_users_username ON users(json_extract(data, '$.username'));
     """)
     await _db.commit()
 
@@ -207,11 +208,13 @@ async def get_user(user_id: str) -> dict | None:
 
 
 async def get_user_by_username(username: str) -> dict | None:
-    async with _db.execute("SELECT data FROM users") as cur:
-        async for row in cur:
-            user = json.loads(row["data"])
-            if user.get("username") == username:
-                return user
+    async with _db.execute(
+        "SELECT data FROM users WHERE json_extract(data, '$.username') = ?",
+        (username,)
+    ) as cur:
+        row = await cur.fetchone()
+        if row:
+            return json.loads(row["data"])
     return None
 
 

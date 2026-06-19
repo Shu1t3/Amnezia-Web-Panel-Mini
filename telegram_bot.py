@@ -92,8 +92,8 @@ class TelegramAPI:
 # ----------------------------------------------------------------------- #
 #  Helpers
 # ----------------------------------------------------------------------- #
-def _find_user(load_data_fn: Callable, tg_id: str):
-    data = load_data_fn()
+async def _find_user(load_data_fn: Callable, tg_id: str):
+    data = await load_data_fn()
     tg_id_clean = str(tg_id).lstrip("@")
     for u in data.get("users", []):
         stored = str(u.get("telegramId", "") or "").lstrip("@")
@@ -129,7 +129,7 @@ async def _handle_start(api: TelegramAPI, msg: dict, load_data_fn: Callable):
     tg_id = str(msg["from"]["id"])
     first_name = msg["from"].get("first_name", "")
 
-    panel_user = _find_user(load_data_fn, tg_id)
+    panel_user = await _find_user(load_data_fn, tg_id)
 
     if not panel_user:
         await api.send_message(
@@ -141,7 +141,7 @@ async def _handle_start(api: TelegramAPI, msg: dict, load_data_fn: Callable):
         )
         return
 
-    data = load_data_fn()
+    data = await load_data_fn()
     conns = [c for c in data.get("user_connections", []) if c["user_id"] == panel_user["id"]]
 
     if not conns:
@@ -170,11 +170,11 @@ async def _handle_refresh(
     api: TelegramAPI, chat_id: int, message_id: int, callback_id: str, tg_id: str, load_data_fn: Callable
 ):
     await api.answer_callback(callback_id, "Updated!")
-    panel_user = _find_user(load_data_fn, tg_id)
+    panel_user = await _find_user(load_data_fn, tg_id)
     if not panel_user:
         await api.edit_message(chat_id, message_id, "❌ Access denied.")
         return
-    data = load_data_fn()
+    data = await load_data_fn()
     conns = [c for c in data.get("user_connections", []) if c["user_id"] == panel_user["id"]]
     if not conns:
         await api.edit_message(chat_id, message_id, "You have no connections.")
@@ -202,12 +202,12 @@ async def _handle_get_config(
 ):
     await api.answer_callback(callback_id, "Fetching config...")
 
-    panel_user = _find_user(load_data_fn, tg_id)
+    panel_user = await _find_user(load_data_fn, tg_id)
     if not panel_user:
         await api.send_message(chat_id, "❌ Access denied.")
         return
 
-    data = load_data_fn()
+    data = await load_data_fn()
     conn = next(
         (c for c in data.get("user_connections", [])
          if c["id"] == conn_id and c["user_id"] == panel_user["id"]),
