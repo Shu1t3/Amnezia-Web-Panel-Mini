@@ -1,21 +1,6 @@
 # Amnezia Web Panel Mini
 
-Современный веб-интерфейс для управления сервисами **AmneziaWG**, **Classic WireGuard**, **Xray (XTLS-Reality)**, **Telemt (Telegram MTProxy)**, **AmneziaDNS**, **AdGuard Home** и **SOCKS5** на удалённых Ubuntu-серверах — из единой панели управления.
-
-## Совместимость с официальным клиентом Amnezia
-
-Панель полностью совместима с официальными приложениями **Amnezia**!
-
-**Как подключить существующий сервер:**
-1. Добавьте сервер, указав его **IP-адрес**, **логин** и **пароль**
-2. Перейдите в раздел «Добавленные серверы»
-3. Дождитесь автоматической проверки сервера
-4. Панель автоматически определит:
-   - ✅ Установленные протоколы
-   - ✅ Существующих пользователей
-   - ✅ Текущую конфигурацию
-
-> ⚡ **После проверки вы можете управлять сервером напрямую из панели!**
+Современный веб-интерфейс для управления сервисами **AmneziaWG 2.0**, **Classic WireGuard**, **Telemt (Telegram MTProxy)**, **AmneziaDNS**, **AdGuard Home** и **SOCKS5** на удалённых Ubuntu-серверах — из единой панели управления.
 
 ## Юридическое уведомление
 
@@ -39,28 +24,29 @@
 ## Ключевые возможности
 
 ### Протоколы VPN
-- **AmneziaWG (AWG / AWG 2.0 / AWG Legacy)** — продвинутый протокол на базе WireGuard с обфускацией S3/S4 для обхода DPI. Три варианта — современный AWG 2.0 и легаси для старых клиентов.
+- **AmneziaWG 2.0** — продвинутый протокол на базе WireGuard с обфускацией S3/S4 для обхода DPI. Автоматическое определение оптимального MTU.
 - **Classic WireGuard** — стандартный высокопроизводительный протокол с поддержкой мониторинга трафика.
-- **Xray (XTLS-Reality)** — маскирует VPN-трафик под стандартный HTTPS. Совместим с конфигурациями официального клиента Amnezia.
 - **Telemt (Telegram MTProxy)** — высокопроизводительный Telegram MTProxy с эмуляцией TLS и управлением (квоты, лимиты IP, отслеживание сессий).
 
 ### Сервисы
 - **AmneziaDNS** — внутренний DNS-резолвер на приватной Docker-сети для предотвращения DNS-утечек.
 - **AdGuard Home** — DNS-блокировщик рекламы. Два режима: замена AmneziaDNS или параллельная работа.
-- **SOCKS5 Proxy** — SOCKS5-прокси на базе 3proxy с автогенерацией пароля.
+- **SOCKS5 Proxy** — SOCKS5-прокси на базе 3proxy с автогенерацией пароля и управлением учётными данными.
 
 ### Управление серверами
 - **Добавление / Редактирование / Удаление / Переупорядочение** серверов (drag-and-drop)
 - **Индикатор ping** в реальном времени для каждого сервера
 - **Очистка сервера** — удаление всех контейнеров и данных Amnezia
 - **Перезагрузка** сервера из интерфейса
+- **Статистика сервера** — CPU, RAM, диск, сеть, uptime в реальном времени
 - **Асинхронная обработка** — неблокирующая архитектура
 
 ### Управление пользователями
 - Роли доступа (Администратор, Поддержка, Обычный пользователь)
-- Лимиты трафика, мониторинг статуса, срок действия акунта
+- Лимиты трафика, мониторинг статуса, срок действия аккаунта
 - Включение/отключение пользователя одним кликом
 - Сброс трафика по расписанию (ежедневно / еженедельно / ежемесячно)
+- Публичные ссылки для доступа к конфигурациям (с опциональной защитой паролем)
 
 ### Интернационализация
 - Полная поддержка **русского**, **английского**, **французского**, **китайского** и **персидского** языков
@@ -73,10 +59,16 @@
 ### Telegram бот
 - Уведомления пользователям о новых подключениях
 - Управление через команды Telegram
+- Запуск/остановка бота прямо из настроек панели
 
 ### API токены
 - Создание bearer-токенов для внешней интеграции
 - Токены наследуют роль создавшего их администратора
+
+### Безопасность
+- КапTCHA на странице входа (опционально)
+- Встроенный SSL/TLS (сертификаты можно задать текстом или путём к файлу)
+- Хеширование паролей через PBKDF2 (SHA-256, 100 000 итераций)
 
 ### База данных
 - **SQLite** — данные хранятся в файле `panel.db` (создаётся автоматически)
@@ -95,8 +87,8 @@
 ### Способ 1: Python
 
 ```bash
-git clone https://github.com/PRVTPRO/Amnezia-Web-Panel.git
-cd Amnezia-Web-Panel
+git clone https://github.com/PRVTPRO/Amnezia-Web-Panel-Mini.git
+cd Amnezia-Web-Panel-Mini
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -116,8 +108,8 @@ docker compose up -d
 ### Способ 3: Готовый образ
 
 ```bash
-docker pull prvtpro/amnezia-panel:latest
-docker run -d -p 8000:8000 -v panel_data:/data prvtpro/amnezia-panel:latest
+docker pull prvtpro/amnezia-panel-mini:latest
+docker run -d -p 8000:8000 -v panel_data:/data prvtpro/amnezia-panel-mini:latest
 ```
 
 ## Первый вход
@@ -134,18 +126,19 @@ docker run -d -p 8000:8000 -v panel_data:/data prvtpro/amnezia-panel:latest
 |---|---|---|
 | `DB_PATH` | Путь к файлу базы данных SQLite | `./panel.db` |
 | `SECRET_KEY` | Секретный ключ для шифрования сессий | Генерируется автоматически |
+| `APP_PORT` | Порт панели (только Docker Compose) | `8000` |
 
 ## Структура проекта
 
 ```
-web-panel/
+Amnezia-Web-Panel-Mini/
 ├── app.py                    # Точка входа FastAPI + все маршруты
-├── telegram_bot.py           # Интеграция с Telegram ботом
+├── telegram_bot.py           # Интеграция с Telegram ботом (raw httpx API)
 ├── managers/
 │   ├── db.py                 # Асинхронный слой работы с SQLite
 │   ├── cache.py              # TTL-кеш для данных и SSH
 │   ├── ssh_manager.py        # SSH-абстракция (обёртка Paramiko)
-│   ├── awg_manager.py        # AmneziaWG / AWG 2.0 / AWG Legacy
+│   ├── awg_manager.py        # AmneziaWG 2.0
 │   ├── wireguard_manager.py  # Classic WireGuard
 │   ├── telemt_manager.py     # Telegram MTProxy
 │   ├── dns_manager.py        # AmneziaDNS (Unbound)
@@ -153,11 +146,14 @@ web-panel/
 │   └── socks5_manager.py     # 3proxy-based SOCKS5
 ├── protocol_telemt/          # Файлы конфигурации Telemt (Dockerfile, compose, config.toml)
 ├── static/                   # CSS / favicon / JS
-├── templates/                # Jinja2 шаблоны
+├── templates/                # Jinja2 шаблоны (8 страниц)
 ├── translations/             # ru / en / fr / zh / fa
+├── tests/                    # pytest тесты (auth, протоколы, регрессии)
+├── screen/                   # Скриншоты панели
 ├── requirements.txt          # Зависимости Python
 ├── Dockerfile                # Многоэтапная сборка Docker
 ├── docker-compose.yml        # Docker Compose конфигурация
+├── test-and-build.sh         # Скрипт запуска тестов и сборки Docker
 ├── panel.db                  # SQLite база данных (создаётся автоматически)
 └── CHANGELOG.md              # Журнал изменений
 ```
@@ -184,8 +180,20 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/jso
   -d '{"host":"1.2.3.4","username":"root","password":"...","name":"new-srv"}' \
   http://your-panel:8000/api/servers/add
 
-# Проверка доступности сервера (ID сервера берётся из /api/servers)
+# Проверка доступности сервера
 curl -H "Authorization: Bearer $TOKEN" http://your-panel:8000/api/servers/1/ping
+```
+
+## Тесты
+
+```bash
+python -m pytest tests/ -v
+```
+
+Или используйте скрипт сборки, который запускает линтер, тесты и собирает Docker-образ:
+
+```bash
+bash test-and-build.sh
 ```
 
 ## Технологический стек
@@ -194,6 +202,7 @@ curl -H "Authorization: Bearer $TOKEN" http://your-panel:8000/api/servers/1/ping
 - **Frontend**: Vanilla JS, Jinja2, CSS (Glassmorphism)
 - **База данных**: SQLite через `aiosqlite` (полная асинхронность, WAL-режим)
 - **SSH**: Paramiko
+- **Telegram бот**: raw httpx API (без зависимостей от `python-telegram-bot`)
 
 ## Рекомендации по безопасности
 
@@ -206,6 +215,3 @@ curl -H "Authorization: Bearer $TOKEN" http://your-panel:8000/api/servers/1/ping
 ## Лицензия
 
 Данный проект лицензирован по **GNU General Public License v3.0** — см. файл [LICENSE](LICENSE).
-
----
-*Создано с ❤️ для сообщества Amnezia.*
