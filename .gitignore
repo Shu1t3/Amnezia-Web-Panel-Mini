@@ -38,6 +38,7 @@ data.json
 .mimocode/
 .ruff_cache/
 pyproject.toml
+cmd/
 
 # IDEs
 .vscode/
