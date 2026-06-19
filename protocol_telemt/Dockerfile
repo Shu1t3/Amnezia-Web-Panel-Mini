@@ -78,12 +78,11 @@ COPY config.toml /app/config.toml
 EXPOSE 443 9090 9091
 
 ENTRYPOINT ["/app/telemt"]
-CMD ["config.toml"]
+CMD ["/app/config.toml"]
 
 # ==========================
 # Production Distroless on MUSL
 # ==========================
-#FROM gcr.io/distroless/static-debian12 AS prod
 FROM debian:12-slim AS prod
 
 RUN set -eux; \
@@ -100,9 +99,7 @@ WORKDIR /app
 COPY --from=minimal /telemt /app/telemt
 COPY config.toml /app/config.toml
 
-#USER nonroot:nonroot
-
 EXPOSE 443 9090 9091
 
 ENTRYPOINT ["/app/telemt"]
-CMD ["config.toml"]
+CMD ["/app/config.toml"]

@@ -42,15 +42,26 @@ class Socks5Manager:
         )
         return 'active' in out2 or 'running' in out2.lower()
 
+    def _find_container_name(self):
+        """Return the actual container name on the host, checking both the
+        current naming convention and the legacy 'socks5' name."""
+        for name in (self.CONTAINER_NAME, 'socks5'):
+            out, _, _ = self.ssh.run_sudo_command(
+                f"docker ps -a --filter name=^{name}$ --format '{{{{.Names}}}}'"
+            )
+            if name in out.strip().split('\n'):
+                return name
+        return None
+
     def check_protocol_installed(self, protocol_type='socks5'):
-        out, _, _ = self.ssh.run_sudo_command(
-            f"docker ps -a --filter name=^{self.CONTAINER_NAME}$ --format '{{{{.Names}}}}'"
-        )
-        return self.CONTAINER_NAME in out.strip().split('\n')
+        return self._find_container_name() is not None
 
     def check_container_running(self):
+        name = self._find_container_name()
+        if not name:
+            return False
         out, _, _ = self.ssh.run_sudo_command(
-            f"docker ps --filter name=^{self.CONTAINER_NAME}$ --format '{{{{.Status}}}}'"
+            f"docker ps --filter name=^{name}$ --format '{{{{.Status}}}}'"
         )
         return 'Up' in out
 
@@ -84,8 +95,9 @@ class Socks5Manager:
         )
 
     def _read_config(self):
+        name = self._find_container_name() or self.CONTAINER_NAME
         out, _, code = self.ssh.run_sudo_command(
-            f"docker exec {self.CONTAINER_NAME} cat {self.CONFIG_PATH} 2>/dev/null"
+            f"docker exec {name} cat {self.CONFIG_PATH} 2>/dev/null"
         )
         if code != 0 or not out.strip():
             out, _, code = self.ssh.run_sudo_command(
@@ -96,12 +108,11 @@ class Socks5Manager:
         return out
 
     def _write_config(self, config_text):
-        # Write to host first (so we have a stable copy outside the container),
-        # then docker cp into the running container at the path 3proxy expects.
+        name = self._find_container_name() or self.CONTAINER_NAME
         self.ssh.run_sudo_command(f"mkdir -p {self.CONFIG_DIR}")
         self.ssh.upload_file_sudo(config_text, f"{self.CONFIG_DIR}/3proxy.cfg")
         self.ssh.run_sudo_command(
-            f"docker cp {self.CONFIG_DIR}/3proxy.cfg {self.CONTAINER_NAME}:{self.CONFIG_PATH} 2>/dev/null || true"
+            f"docker cp {self.CONFIG_DIR}/3proxy.cfg {name}:{self.CONFIG_PATH} 2>/dev/null || true"
         )
 
     def _parse_credentials(self, config_text):
@@ -192,7 +203,8 @@ class Socks5Manager:
 
         config_text = self._build_config(new_user, new_pass, new_port)
         self._write_config(config_text)
-        self.ssh.run_sudo_command(f"docker restart {self.CONTAINER_NAME}")
+        name = self._find_container_name() or self.CONTAINER_NAME
+        self.ssh.run_sudo_command(f"docker restart {name}")
 
         return {
             'status': 'success',
@@ -202,7 +214,8 @@ class Socks5Manager:
         }
 
     def remove_container(self, protocol_type='socks5'):
-        self.ssh.run_sudo_command(f"docker stop {self.CONTAINER_NAME} || true")
-        self.ssh.run_sudo_command(f"docker rm -fv {self.CONTAINER_NAME} || true")
+        name = self._find_container_name() or self.CONTAINER_NAME
+        self.ssh.run_sudo_command(f"docker stop {name} || true")
+        self.ssh.run_sudo_command(f"docker rm -fv {name} || true")
         self.ssh.run_sudo_command(f"rm -rf {self.CONFIG_DIR}")
         return True

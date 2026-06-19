@@ -5,7 +5,6 @@ Replicates the ServerController logic from the AmneziaVPN client.
 
 import paramiko
 import io
-import time
 import logging
 
 logger = logging.getLogger(__name__)

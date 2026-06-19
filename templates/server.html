@@ -88,78 +88,6 @@
         </div>
     </div>
 
-    <!-- AWG Card -->
-    <div class="card card-hover protocol-card protocol-awg" id="proto-awg">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-sm);">
-            <div class="protocol-icon">🔮</div>
-            <div class="flex gap-sm" id="awg-ctrl" style="display:none!important;"></div>
-        </div>
-        <div class="protocol-name">AmneziaWG</div>
-        <div class="protocol-desc">
-            {{ _('awg_desc') }}
-        </div>
-        <div class="protocol-status" id="awg-status">
-            <span class="badge badge-warn"><span class="badge-dot"></span> {{ _('not_checked') }}</span>
-        </div>
-        <div id="awg-info" class="hidden">
-            <div class="protocol-info" id="awg-info-grid"></div>
-        </div>
-        <div class="flex gap-sm" id="awg-actions">
-            <button class="btn btn-primary btn-sm" onclick="openInstallModal('awg')" id="awg-install-btn"
-                style="flex:1">
-                {{ _('install') }}
-            </button>
-        </div>
-    </div>
-
-    <!-- AWG Legacy Card -->
-    <div class="card card-hover protocol-card protocol-legacy" id="proto-awg-legacy">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-sm);">
-            <div class="protocol-icon">📡</div>
-            <div class="flex gap-sm" id="awg-legacy-ctrl" style="display:none!important;"></div>
-        </div>
-        <div class="protocol-name">AmneziaWG Legacy</div>
-        <div class="protocol-desc">
-            {{ _('awg_legacy_desc') }}
-        </div>
-        <div class="protocol-status" id="awg-legacy-status">
-            <span class="badge badge-warn"><span class="badge-dot"></span> {{ _('not_checked') }}</span>
-        </div>
-        <div id="awg-legacy-info" class="hidden">
-            <div class="protocol-info" id="awg-legacy-info-grid"></div>
-        </div>
-        <div class="flex gap-sm" id="awg-legacy-actions">
-            <button class="btn btn-primary btn-sm" onclick="openInstallModal('awg_legacy')" id="awg-legacy-install-btn"
-                style="flex:1">
-                {{ _('install') }}
-            </button>
-        </div>
-    </div>
-
-    <!-- Xray Card -->
-    <div class="card card-hover protocol-card protocol-xray" id="proto-xray">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-sm);">
-            <div class="protocol-icon">⚡</div>
-            <div class="flex gap-sm" id="xray-ctrl" style="display:none!important;"></div>
-        </div>
-        <div class="protocol-name">Xray (VLESS-Reality)</div>
-        <div class="protocol-desc">
-            {{ _('xray_desc') }}
-        </div>
-        <div class="protocol-status" id="xray-status">
-            <span class="badge badge-warn"><span class="badge-dot"></span> {{ _('not_checked') }}</span>
-        </div>
-        <div id="xray-info" class="hidden">
-            <div class="protocol-info" id="xray-info-grid"></div>
-        </div>
-        <div class="flex gap-sm" id="xray-actions">
-            <button class="btn btn-primary btn-sm" onclick="openInstallModal('xray')" id="xray-install-btn"
-                style="flex:1">
-                {{ _('install') }}
-            </button>
-        </div>
-    </div>
-
     <!-- Telemt Card -->
     <div class="card card-hover protocol-card protocol-telemt" id="proto-telemt">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-sm);">
@@ -205,26 +133,6 @@
                 style="flex:1">
                 {{ _('install') }}
             </button>
-        </div>
-    </div>
-
-    <!-- ===== AIVPN teaser (locked, full grid width) ===== -->
-    <div class="promo-block promo-aivpn" aria-disabled="true" role="article">
-        <div class="promo-orbs" aria-hidden="true">
-            <span class="promo-orb"></span>
-            <span class="promo-orb"></span>
-            <span class="promo-orb"></span>
-        </div>
-        <span class="promo-lock-badge">🔒 {{ _('coming_soon') }}</span>
-        <div class="promo-content">
-            <div class="promo-icon" aria-hidden="true">🧠</div>
-            <div class="promo-text">
-                <div class="promo-title">AIVPN</div>
-                <div class="promo-subtitle">{{ _('aivpn_subtitle') }}</div>
-            </div>
-            <a class="promo-cta" href="https://github.com/PRVTPRO/Amnezia-Web-Panel" target="_blank" rel="noopener">
-                ⭐ <span>{{ _('promo_star_cta') }}</span>
-            </a>
         </div>
     </div>
 </div>
@@ -301,27 +209,6 @@
             </button>
         </div>
     </div>
-
-    <!-- ===== Reverse Proxy teaser (locked, full grid width) ===== -->
-    <div class="promo-block promo-revproxy" aria-disabled="true" role="article">
-        <div class="promo-grid-bg" aria-hidden="true"></div>
-        <div class="promo-orbs" aria-hidden="true">
-            <span class="promo-orb"></span>
-            <span class="promo-orb"></span>
-            <span class="promo-orb"></span>
-        </div>
-        <span class="promo-lock-badge">🔒 {{ _('coming_soon') }}</span>
-        <div class="promo-content">
-            <div class="promo-icon" aria-hidden="true">🛡️</div>
-            <div class="promo-text">
-                <div class="promo-title">{{ _('revproxy_title') }}</div>
-                <div class="promo-subtitle">{{ _('revproxy_subtitle') }}</div>
-            </div>
-            <a class="promo-cta" href="https://github.com/PRVTPRO/Amnezia-Web-Panel" target="_blank" rel="noopener">
-                ⭐ <span>{{ _('promo_star_cta') }}</span>
-            </a>
-        </div>
-    </div>
 </div>
 
 <div class="protocol-cards hidden" id="management-grid" style="margin-bottom: var(--space-xl);">
@@ -357,10 +244,7 @@
         <div class="flex gap-sm items-center">
             <select class="form-select" id="connProtoSelect" onchange="loadConnections()"
                 style="width:auto; min-width:160px;">
-                <option value="awg">AmneziaWG</option>
                 <option value="awg2">AmneziaWG 2.0</option>
-                <option value="awg_legacy">AWG Legacy</option>
-                <option value="xray">Xray</option>
                 <option value="telemt">Telemt</option>
                 <option value="wireguard">WireGuard</option>
             </select>
@@ -689,7 +573,7 @@
 <script>
     const SERVER_ID = {{ server_id }};
     const SERVER_HOST = "{{ server.host }}";
-    let currentInstallProto = 'awg';
+    let currentInstallProto = 'awg2';
     let currentConfig = '';
     let currentVpnLink = '';
     let currentConfigName = 'connection';
@@ -726,10 +610,7 @@
 
     function getProtoTitle(proto) {
         switch (proto) {
-            case 'awg': return 'AmneziaWG';
             case 'awg2': return 'AmneziaWG 2.0';
-            case 'awg_legacy': return 'AWG Legacy';
-            case 'xray': return 'Xray';
             case 'telemt': return 'Telemt';
             case 'wireguard': return 'WireGuard';
             case 'dns': return 'AmneziaDNS';
@@ -787,7 +668,7 @@
 
                 for (const [proto, info] of Object.entries(data.protocols)) {
                     updateProtocolCard(proto, info);
-                    const isVPN = ['awg', 'awg2', 'awg_legacy', 'xray', 'telemt', 'wireguard'].includes(proto);
+                    const isVPN = ['awg2', 'telemt', 'wireguard'].includes(proto);
                     if (info.container_running && isVPN) {
                         const opt = document.createElement('option');
                         opt.value = proto;
@@ -828,7 +709,7 @@
     }
 
     function updateStatusCounts(protocols) {
-        const protos = ['awg', 'awg2', 'awg_legacy', 'xray', 'telemt', 'wireguard'];
+        const protos = ['awg2', 'telemt', 'wireguard'];
         const servs = ['dns', 'adguard', 'socks5'];
 
         let pRunning = 0, pTotal = protos.length;
@@ -902,7 +783,7 @@
                 if (isService) {
                     grid = buildServiceInfoGrid(proto, info);
                 } else if (info.port) {
-                    grid += `<div class="protocol-info-item"><span class="protocol-info-label">${_('port')}</span><span class="protocol-info-value">${info.port}/${(proto === 'xray' || proto === 'telemt') ? 'TCP' : 'UDP'}</span></div>`;
+                    grid += `<div class="protocol-info-item"><span class="protocol-info-label">${_('port')}</span><span class="protocol-info-value">${info.port}/${proto === 'telemt' ? 'TCP' : 'UDP'}</span></div>`;
                 }
                 if (!isService && info.clients_count !== undefined) {
                     grid += `<div class="protocol-info-item"><span class="protocol-info-label">${_('connections')}</span><span class="protocol-info-value">${info.clients_count}</span></div>`;
@@ -1007,7 +888,7 @@
         }
     }
 
-    // View server-side WireGuard/Xray config
+    // View server-side WireGuard config
     async function showServerConfig(proto) {
         const name = getProtoTitle(proto);
         try {
@@ -1088,11 +969,6 @@
             portInput.value = '53';
             portInput.disabled = true;
             portHint.textContent = _('dns_internal_hint');
-        } else if (proto === 'xray') {
-            portLabel.textContent = _('port') + ' (TCP)';
-            portInput.disabled = false;
-            portInput.value = '443';
-            portHint.textContent = _('port_xray_hint');
         } else if (proto === 'telemt') {
             portLabel.textContent = _('port') + ' (TCP)';
             portInput.value = '443';
@@ -1291,7 +1167,7 @@
                 const sent = userData.dataSent || '';
                 const initial = name.charAt(0).toUpperCase();
                 const enabled = (client.enabled !== undefined) ? client.enabled : (userData.enabled !== false);
-                const hasPrivKey = !!userData.clientPrivateKey || proto === 'xray' || proto === 'telemt';
+                const hasPrivKey = !!userData.clientPrivateKey || proto === 'telemt';
                 const assignedUser = client.assigned_user || '';
 
                 let metaHtml = '';
@@ -1317,7 +1193,7 @@
                 const toggleTitle = enabled ? _('stop') : _('starting');
                 // Show config button for all WireGuard-based clients.
                 // If clientPrivateKey is missing (created via native app), we show a warning instead.
-                const canShowConfig = proto === 'xray' || true; // always show 📄 button
+                const canShowConfig = true; // always show 📄 button
 
                 listEl.innerHTML += `
                     <div class="client-item" style="${disabledStyle}">
@@ -1329,7 +1205,7 @@
                             </div>
                         </div>
                         <div class="client-actions">
-                            <button class="btn btn-secondary btn-sm btn-icon" onclick="showConnectionConfig('${escapeJs(client.clientId)}', '${escapeJs(name)}', ${!!userData.clientPrivateKey || proto === 'xray' || proto === 'telemt'})" title="${_('config')}">📄</button>
+                            <button class="btn btn-secondary btn-sm btn-icon" onclick="showConnectionConfig('${escapeJs(client.clientId)}', '${escapeJs(name)}', ${!!userData.clientPrivateKey || proto === 'telemt'})" title="${_('config')}">📄</button>
                             ${proto === 'telemt' ? `<button class="btn btn-secondary btn-sm btn-icon" onclick="editConnection('${escapeJs(client.clientId)}')" title="${_('edit')}">✏️</button>` : ''}
                             <button class="btn btn-secondary btn-sm btn-icon" onclick="toggleConnection('${escapeJs(client.clientId)}', ${!enabled})" title="${toggleTitle}">${toggleIcon}</button>
                             <button class="btn btn-danger btn-sm btn-icon" onclick="removeConnection('${escapeJs(client.clientId)}')" title="${_('delete')}">🗑</button>

@@ -4,7 +4,6 @@ import uuid
 import re
 import os
 import secrets
-from datetime import datetime
 from .ssh_manager import SSHManager
 
 logger = logging.getLogger(__name__)
@@ -51,21 +50,16 @@ class TelemtManager:
         }
         
         if is_running:
-            # get external docker port mapping for 443
             out, _, _ = self.ssh.run_command(f"docker port {self.CONTAINER_NAME} 443 2>/dev/null")
             if out:
                 port = out.split(':')[-1].strip()
                 status['port'] = port
             else:
                 status['port'] = None
-                
+
             config = self._get_server_config()
             status['awg_params'] = self._parse_telemt_params(config)
-            
-            # Count connections from API
-            clients = self.get_clients(protocol_type)
-            status['clients_count'] = len(clients)
-            
+
         return status
 
     def _ensure_docker_compose(self):
@@ -165,9 +159,6 @@ docker compose version
             config_content = config_content.replace('[general.links]', f'[general.links]\npublic_host = "{self.ssh.host}"')
             
         config_content = re.sub(r'public_port\s*=\s*\d+', f'public_port = {port}', config_content)
-        
-        # Remove default hello user
-        config_content = re.sub(r'^hello\s*=\s*".*?"', '', config_content, flags=re.MULTILINE)
             
         self.ssh.upload_file_sudo(config_content, f"{remote_dir}/config.toml")
         
@@ -196,8 +187,9 @@ docker compose version
         }
 
     def _get_server_config(self):
-        out, _, code = self.ssh.run_sudo_command(f"cat /opt/amnezia/telemt/config.toml")
-        if code != 0: return ""
+        out, _, code = self.ssh.run_sudo_command("cat /opt/amnezia/telemt/config.toml")
+        if code != 0:
+            return ""
         return out
 
     def save_server_config(self, protocol_type, config_content):
@@ -209,13 +201,16 @@ docker compose version
     def _parse_telemt_params(self, config_text):
         params = {}
         m = re.search(r'tls_emulation\s*=\s*(true|false)', config_text, re.IGNORECASE)
-        if m: params['tls_emulation'] = m.group(1).lower() == 'true'
+        if m:
+            params['tls_emulation'] = m.group(1).lower() == 'true'
         
         m = re.search(r'tls_domain\s*=\s*"([^"]+)"', config_text)
-        if m: params['tls_domain'] = m.group(1)
+        if m:
+            params['tls_domain'] = m.group(1)
         
         m = re.search(r'max_connections\s*=\s*(\d+)', config_text)
-        if m: params['max_connections'] = int(m.group(1))
+        if m:
+            params['max_connections'] = int(m.group(1))
         
         return params
 
@@ -239,9 +234,12 @@ docker compose version
             user_stats = api_data.get(username.lstrip('#').strip(), {})
             links = user_stats.get('links', {})
             tg_link = ""
-            if links.get('tls'): tg_link = links['tls'][0]
-            elif links.get('secure'): tg_link = links['secure'][0]
-            elif links.get('classic'): tg_link = links['classic'][0]
+            if links.get('tls'):
+                tg_link = links['tls'][0]
+            elif links.get('secure'):
+                tg_link = links['secure'][0]
+            elif links.get('classic'):
+                tg_link = links['classic'][0]
             
             enabled = not username.startswith('#')
             clean_name = username.lstrip('#').strip()
@@ -297,7 +295,8 @@ docker compose version
                 commented = stripped.startswith('#')
                 content = stripped.lstrip('#').strip()
                 if '=' in content:
-                    if content.lower().startswith('format:'): continue
+                    if content.lower().startswith('format:'):
+                        continue
                     name, secret = content.split('=', 1)
                     name = name.strip().strip('"').strip()
                     secret = secret.strip().strip('"').strip()
@@ -307,7 +306,8 @@ docker compose version
 
     def add_client(self, protocol_type, name, host='', port='', **kwargs):
         username = re.sub(r'[^a-zA-Z0-9_.-]', '', name.replace(' ', '_'))
-        if not username: username = "user_" + uuid.uuid4().hex[:8]
+        if not username:
+            username = "user_" + uuid.uuid4().hex[:8]
         
         config_text = self._get_server_config()
         current_users = self._parse_users_from_config(config_text)
@@ -427,7 +427,8 @@ docker compose version
                 section_end = i
                 break
         
-        if section_end == -1: section_end = len(lines)
+        if section_end == -1:
+            section_end = len(lines)
         if section_start == -1:
             if value is not None:
                 lines.append(f"[{section_name}]")
@@ -439,8 +440,10 @@ docker compose version
         for i in range(section_start + 1, section_end):
             line = lines[i].strip().lstrip('#').strip()
             if line.startswith(f"{client_id} ") or line.startswith(f"{client_id}="):
-                if value is None: lines.pop(i)
-                else: lines[i] = f'{client_id} = {value}'
+                if value is None:
+                    lines.pop(i)
+                else:
+                    lines[i] = f'{client_id} = {value}'
                 found = True
                 break
         
@@ -490,8 +493,10 @@ docker compose version
         in_access_section = False
         for line in lines:
             stripped = line.strip()
-            if stripped.startswith('[access.'): in_access_section = True
-            elif stripped.startswith('['): in_access_section = False
+            if stripped.startswith('[access.'):
+                in_access_section = True
+            elif stripped.startswith('['):
+                in_access_section = False
             
             if in_access_section:
                 base_line = line.lstrip('#').strip()
@@ -520,13 +525,17 @@ docker compose version
         if resp and resp.get('ok'):
             user = resp.get('data', {})
             links = user.get('links', {})
-            if links.get('tls'): return links['tls'][0]
-            if links.get('secure'): return links['secure'][0]
-            if links.get('classic'): return links['classic'][0]
+            if links.get('tls'):
+                return links['tls'][0]
+            if links.get('secure'):
+                return links['secure'][0]
+            if links.get('classic'):
+                return links['classic'][0]
             
         clients = self.get_clients(protocol_type)
         c = next((c for c in clients if c['clientId'] == client_id), None)
         if c:
             secret = c.get('userData', {}).get('token', '')
-            if secret: return f"tg://proxy?server={host}&port={port}&secret={secret}"
+            if secret:
+                return f"tg://proxy?server={host}&port={port}&secret={secret}"
         return "Not found"

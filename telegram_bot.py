@@ -224,7 +224,7 @@ async def _handle_get_config(
         return
 
     server = servers[sid]
-    proto = conn.get("protocol", "awg")
+    proto = conn.get("protocol", "awg2")
     conn_name = conn.get("name", "Connection")
 
     # Send "Loading..." as new message
@@ -232,11 +232,11 @@ async def _handle_get_config(
     loading_msg_id = loading_result.get("result", {}).get("message_id")
 
     try:
-        import sys, os
+        import sys
+        import os
         sys.path.insert(0, os.path.dirname(__file__))
         from managers.ssh_manager import SSHManager
         from managers.awg_manager import AWGManager
-        from managers.xray_manager import XrayManager
 
         ssh = SSHManager(
             server["host"],
@@ -254,17 +254,13 @@ async def _handle_get_config(
             from managers.wireguard_manager import WireGuardManager
             from managers.telemt_manager import TelemtManager
 
-            if proto == "xray":
-                mgr = XrayManager(ssh)
-                cfg = mgr.get_client_config(proto, conn["client_id"], server["host"], port)
-            elif proto == "wireguard":
+            if proto == "wireguard":
                 mgr = WireGuardManager(ssh)
                 cfg = mgr.get_client_config(conn["client_id"], server["host"])
             elif proto == "telemt":
                 mgr = TelemtManager(ssh)
                 cfg = mgr.get_client_config(proto, conn["client_id"], server["host"], port)
             else:
-                # awg, awg2, awg_legacy
                 mgr = AWGManager(ssh)
                 cfg = mgr.get_client_config(proto, conn["client_id"], server["host"], port)
             ssh.disconnect()

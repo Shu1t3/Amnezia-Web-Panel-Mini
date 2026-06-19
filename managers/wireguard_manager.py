@@ -29,6 +29,53 @@ WG_DEFAULTS = {
 }
 
 
+def detect_optimal_mtu(ssh, target_host=None):
+    """
+    Detect optimal MTU by pinging with decreasing packet sizes.
+    Uses the same approach as AmneziaVPN client scripts.
+    
+    Args:
+        ssh: SSHManager instance
+        target_host: Host to ping (default: 8.8.8.8)
+    
+    Returns:
+        Optimal MTU value (int)
+    """
+    if not target_host:
+        target_host = '8.8.8.8'
+    
+    # Start with max MTU and decrease until ping succeeds
+    # Standard Ethernet MTU is 1500, minus 20 IP + 8 UDP = 28 bytes overhead
+    # So max payload = 1472, which gives MTU = 1500
+    max_payload = 1472
+    min_payload = 576  # Minimum MTU for IP
+    
+    # Binary search for optimal MTU
+    low = min_payload
+    high = max_payload
+    optimal = 1280  # Safe default
+    
+    while low <= high:
+        mid = (low + high) // 2
+        # ping -M do (don't fragment) -s size -c 1 -W 2
+        out, _, code = ssh.run_command(
+            f"ping -M do -s {mid} -c 1 -W 2 {target_host} 2>/dev/null"
+        )
+        if code == 0:
+            # Ping succeeded, try larger
+            optimal = mid + 28  # Add IP/UDP overhead to get MTU
+            low = mid + 1
+        else:
+            # Ping failed (fragmentation needed), try smaller
+            high = mid - 1
+    
+    # Clamp to reasonable range
+    optimal = max(1280, min(optimal, 1500))
+    
+    logger.info(f"Detected optimal MTU: {optimal} for {target_host}")
+    return optimal
+
+
 def generate_wg_keypair():
     """Generate a WireGuard X25519 keypair (private, public) as base64 strings."""
     private_key = X25519PrivateKey.generate()
@@ -148,6 +195,16 @@ iptables -C FORWARD -j DOCKER-USER 2>/dev/null || iptables -A FORWARD -j DOCKER-
 
         results = []
 
+        # Detect optimal MTU
+        results.append("Detecting optimal MTU...")
+        try:
+            optimal_mtu = detect_optimal_mtu(self.ssh)
+            results.append(f"Optimal MTU: {optimal_mtu}")
+        except Exception as e:
+            logger.warning(f"MTU detection failed, using default: {e}")
+            optimal_mtu = int(WG_DEFAULTS['mtu'])
+            results.append(f"Using default MTU: {optimal_mtu}")
+
         # Step 1: Install Docker
         if not self.check_docker_installed():
             results.append("Installing Docker...")
@@ -224,7 +281,7 @@ iptables -C FORWARD -j DOCKER-USER 2>/dev/null || iptables -A FORWARD -j DOCKER-
 
         # Step 6: Configure container
         results.append("Configuring WireGuard...")
-        self._configure_container(port)
+        self._configure_container(port, optimal_mtu)
         results.append("WireGuard configured")
 
         # Step 7: Upload start script
@@ -266,10 +323,12 @@ iptables -C FORWARD -j DOCKER-USER 2>/dev/null || iptables -A FORWARD -j DOCKER-
             f"(status: {last_status}). Logs:\n{logs_out}"
         )
 
-    def _configure_container(self, port):
+    def _configure_container(self, port, mtu=None):
         """Configure the WireGuard container (generate keys and server config)."""
         subnet_ip = WG_DEFAULTS['subnet_ip']
         subnet_cidr = WG_DEFAULTS['subnet_cidr']
+        if mtu is None:
+            mtu = int(WG_DEFAULTS['mtu'])
 
         config_script = f"""
 mkdir -p {self.KEY_DIR}
@@ -288,6 +347,7 @@ cat > {self.CONFIG_PATH} <<EOF
 PrivateKey = $WIREGUARD_SERVER_PRIVATE_KEY
 Address = {subnet_ip}/{subnet_cidr}
 ListenPort = {port}
+MTU = {mtu}
 EOF
 """
         out, err, code = self.ssh.run_sudo_command(
@@ -408,6 +468,14 @@ tail -f /dev/null
             if line.strip().startswith('ListenPort'):
                 return line.split('=', 1)[1].strip()
         return WG_DEFAULTS['port']
+
+    def _get_mtu(self):
+        """Extract MTU from server config."""
+        config = self._get_server_config()
+        for line in config.split('\n'):
+            if line.strip().startswith('MTU'):
+                return line.split('=', 1)[1].strip()
+        return WG_DEFAULTS['mtu']
 
     def _get_used_ips(self):
         """Get list of IPs already assigned in the config."""
@@ -591,7 +659,7 @@ tail -f /dev/null
         if 'amnezia-dns' in out:
             dns1 = '172.29.172.254'
             
-        mtu = WG_DEFAULTS['mtu']
+        mtu = self._get_mtu()
 
         # Append peer to server config
         peer_section = f"""
@@ -677,7 +745,7 @@ PersistentKeepalive = 25
         if 'amnezia-dns' in out:
             dns1 = '172.29.172.254'
             
-        mtu = WG_DEFAULTS['mtu']
+        mtu = self._get_mtu()
 
         config = f"""[Interface]
 Address = {client_ip}/32

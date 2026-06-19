@@ -30,7 +30,14 @@ coverage.xml
 
 # User data
 data.json
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
 .DS_Store
+.mimocode/
+.ruff_cache/
+pyproject.toml
 
 # IDEs
 .vscode/
