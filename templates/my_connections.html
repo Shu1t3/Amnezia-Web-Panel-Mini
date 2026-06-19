@@ -16,21 +16,21 @@
             <div class="client-info">
                 <div class="client-avatar">🔗</div>
                 <div>
-                    <div class="client-name">{{ c.name or 'VPN Connection' }}</div>
+                    <div class="client-name">{{ c.name|default:'VPN Connection' }}</div>
                     <div class="client-meta">
                         <span>🖥 {{ c.server_name }}</span>
                         <span class="badge badge-info" style="font-size:0.65rem;">
-                            {{ 'AmneziaWG 2.0' if c.protocol == 'awg2' else (c.protocol | upper) }}
+                            {% if c.protocol == 'awg2' %}AmneziaWG 2.0{% else %}{{ c.protocol | upper }}{% endif %}
                         </span>
                         {% if c.created_at %}
-                        <span>📅 {{ c.created_at[:10] }}</span>
+                        <span>📅 {{ c.created_at|truncatechars:10 }}</span>
                         {% endif %}
                     </div>
                 </div>
             </div>
             <div class="client-actions">
                 <button class="btn btn-primary btn-sm"
-                    onclick="showMyConfig('{{ c.id }}', '{{ c.name or 'Connection' }}', '{{ c.protocol }}')">
+                    onclick="showMyConfig('{{ c.id }}', '{{ c.name|default:'Connection' }}', '{{ c.protocol }}')">
                     {{ _('show_config') }}
                 </button>
             </div>

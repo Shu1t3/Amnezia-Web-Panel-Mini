@@ -32,8 +32,7 @@
 
         <div id="pagination"
             style="display: flex; justify-content: center; align-items: center; gap: var(--space-md); margin-top: var(--space-xl);">
-            <button class="btn btn-secondary btn-sm" id="prevPage" onclick="changePage(-1)">{{ _('prev_page')
-                }}</button>
+            <button class="btn btn-secondary btn-sm" id="prevPage" onclick="changePage(-1)">{{ _('prev_page')                 }}</button>
             <span id="pageInfo" style="font-weight: 600; font-size: 0.9rem;"></span>
             <button class="btn btn-secondary btn-sm" id="nextPage" onclick="changePage(1)">{{ _('next_page') }}</button>
         </div>
@@ -173,8 +172,7 @@
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('addUserModal')">{{ _('cancel')
-                    }}</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addUserModal')">{{ _('cancel')                     }}</button>
                 <button type="submit" class="btn btn-primary" id="addUserBtn">
                     <span id="addUserBtnText">{{ _('create') }}</span>
                     <div class="spinner hidden" id="addUserSpinner"></div>
@@ -188,7 +186,7 @@
 <div class="modal-backdrop" id="editUserModal">
     <div class="modal">
         <div class="modal-header">
-            <h2 class="modal-title">{{ _('edit_user_title').replace('{}', '<span id="editUserTitle"></span>') | safe }}
+            <h2 class="modal-title">{{ _('edit_user_title')|replace:"{}|<span id=\"editUserTitle\"></span>" | safe }}
             </h2>
             <button class="modal-close" onclick="closeModal('editUserModal')">&times;</button>
         </div>
@@ -352,19 +350,16 @@
             <div class="config-display">
                 <div class="config-text" id="configText"></div>
                 <div class="config-actions">
-                    <button class="btn btn-secondary btn-sm" onclick="copyToClipboard(currentConfig)" style="flex:1">{{
-                        _('copy_config') }}</button>
+                    <button class="btn btn-secondary btn-sm" onclick="copyToClipboard(currentConfig)" style="flex:1">{{                         _('copy_config') }}</button>
                     <button class="btn btn-primary btn-sm"
-                        onclick="downloadFile(currentConfig, currentConfigName+'.conf')" style="flex:1">{{
-                        _('download_conf') }}</button>
+                        onclick="downloadFile(currentConfig, currentConfigName+'.conf')" style="flex:1">{{                         _('download_conf') }}</button>
                 </div>
             </div>
         </div>
         <div class="config-panel" id="panel-vpn">
             <div class="vpn-link-box" id="vpnLinkText"></div>
             <div class="config-actions" style="margin-top:var(--space-sm);">
-                <button class="btn btn-secondary btn-sm" onclick="copyToClipboard(currentVpnLink)" style="flex:1">{{
-                    _('copy_key') }}</button>
+                <button class="btn btn-secondary btn-sm" onclick="copyToClipboard(currentVpnLink)" style="flex:1">{{                     _('copy_key') }}</button>
             </div>
         </div>
         <div class="config-panel" id="panel-qr">

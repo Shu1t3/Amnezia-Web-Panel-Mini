@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ site_settings.title or 'Amnezia Panel' }} — {{ _('login') }}</title>
+    <title>{{ site_settings.title|default:'Amnezia Panel' }} — {{ _('login') }}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/css/style.css">
     <script>!function () { var t = localStorage.getItem('theme') || 'dark'; document.documentElement.setAttribute('data-theme', t) }()</script>
@@ -79,8 +79,7 @@
     <button class="theme-toggle" onclick="openModal('langModal')" id="langToggle"
         style="position:fixed; top:20px; {% if lang == 'fa' %}left:65px;{% else %}right:65px;{% endif %} z-index:10;"
         title="{{ _('select_lang') }}">
-        {% if lang == 'ru' %}🇷🇺{% elif lang == 'fr' %}🇫🇷{% elif lang == 'zh' %}🇨🇳{% elif lang == 'fa' %}🇮🇷{%
-        else %}🇺🇸{% endif %}
+        {% if lang == 'ru' %}🇷🇺{% elif lang == 'fr' %}🇫🇷{% elif lang == 'zh' %}🇨🇳{% elif lang == 'fa' %}🇮🇷{%         else %}🇺🇸{% endif %}
     </button>
     <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle"
         style="position:fixed; top:20px; {% if lang == 'fa' %}left:20px;{% else %}right:20px;{% endif %} z-index:10;"
@@ -89,14 +88,13 @@
     <div class="login-wrapper">
         <div class="login-card">
             <div class="login-logo">
-                <div class="logo-icon">{{ site_settings.logo or '🛡' }}</div>
-                <div class="logo-text">{{ site_settings.title or 'Amnezia Panel' }}</div>
-                <div class="logo-subtitle">{{ site_settings.subtitle or 'Web Panel' }}</div>
+                <div class="logo-icon">{{ site_settings.logo|default:'🛡' }}</div>
+                <div class="logo-text">{{ site_settings.title|default:'Amnezia Panel' }}</div>
+                <div class="logo-subtitle">{{ site_settings.subtitle|default:'Web Panel' }}</div>
             </div>
 
             <div class="card">
-                <h2 style="font-size:1.2rem; font-weight:600; margin-bottom:var(--space-lg); text-align:center;">{{
-                    _('login_title') }}</h2>
+                <h2 style="font-size:1.2rem; font-weight:600; margin-bottom:var(--space-lg); text-align:center;">{{                     _('login_title') }}</h2>
 
                 <div class="login-error" id="loginError"></div>
 
@@ -143,23 +141,31 @@
                 <button class="modal-close" onclick="closeModal('langModal')">×</button>
             </div>
             <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
-                {% set langs = [
-                ('en', '🇺🇸', 'lang_en'),
-                ('ru', '🇷🇺', 'lang_ru'),
-                ('fr', '🇫🇷', 'lang_fr'),
-                ('zh', '🇨🇳', 'lang_zh'),
-                ('fa', '🇮🇷', 'lang_fa')
-                ] %}
-                {% for l_code, l_flag, l_key in langs %}
-                <a href="/set_lang/{{ l_code }}" class="btn btn-secondary"
-                    style="justify-content: flex-start; gap: var(--space-md); padding: var(--space-md);">
-                    <span style="font-size: 1.4rem;">{{ l_flag }}</span>
-                    <span style="font-weight: 500;">{{ _(l_key) }}</span>
-                    {% if lang == l_code %}
-                    <span class="lang-check">✓</span>
-                    {% endif %}
+                <a href="/set_lang/en" class="btn btn-secondary" style="justify-content: flex-start; gap: var(--space-md); padding: var(--space-md);">
+                    <span style="font-size: 1.4rem;">🇺🇸</span>
+                    <span style="font-weight: 500;">{{ _('lang_en') }}</span>
+                    {% if lang == 'en' %}<span class="lang-check">✓</span>{% endif %}
                 </a>
-                {% endfor %}
+                <a href="/set_lang/ru" class="btn btn-secondary" style="justify-content: flex-start; gap: var(--space-md); padding: var(--space-md);">
+                    <span style="font-size: 1.4rem;">🇷🇺</span>
+                    <span style="font-weight: 500;">{{ _('lang_ru') }}</span>
+                    {% if lang == 'ru' %}<span class="lang-check">✓</span>{% endif %}
+                </a>
+                <a href="/set_lang/fr" class="btn btn-secondary" style="justify-content: flex-start; gap: var(--space-md); padding: var(--space-md);">
+                    <span style="font-size: 1.4rem;">🇫🇷</span>
+                    <span style="font-weight: 500;">{{ _('lang_fr') }}</span>
+                    {% if lang == 'fr' %}<span class="lang-check">✓</span>{% endif %}
+                </a>
+                <a href="/set_lang/zh" class="btn btn-secondary" style="justify-content: flex-start; gap: var(--space-md); padding: var(--space-md);">
+                    <span style="font-size: 1.4rem;">🇨🇳</span>
+                    <span style="font-weight: 500;">{{ _('lang_zh') }}</span>
+                    {% if lang == 'zh' %}<span class="lang-check">✓</span>{% endif %}
+                </a>
+                <a href="/set_lang/fa" class="btn btn-secondary" style="justify-content: flex-start; gap: var(--space-md); padding: var(--space-md);">
+                    <span style="font-size: 1.4rem;">🇮🇷</span>
+                    <span style="font-weight: 500;">{{ _('lang_fa') }}</span>
+                    {% if lang == 'fa' %}<span class="lang-check">✓</span>{% endif %}
+                </a>
             </div>
         </div>
     </div>

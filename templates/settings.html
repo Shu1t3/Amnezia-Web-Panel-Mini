@@ -51,7 +51,7 @@
             <form id="telegramForm">
                 <div class="form-group">
                     <label class="form-label">{{ _('bot_token_label') }}</label>
-                    <input type="text" class="form-input" id="tg_token" value="{{ telegram_settings.token or '' }}"
+                    <input type="text" class="form-input" id="tg_token" value="{{ telegram_settings.token|default:'' }}"
                         placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11">
                 </div>
                 <div style="display: flex; align-items: center; gap: var(--space-md); margin-top: var(--space-md);">
@@ -64,8 +64,7 @@
                         {% endif %}
                     </div>
                     <button type="button" class="btn btn-secondary btn-sm" onclick="toggleBot()" id="toggleBotBtn">
-                        <span id="toggleBotBtnText">{% if bot_running %}{{ _('bot_stop_btn') }}{% else %}{{
-                            _('bot_start_btn') }}{% endif %}</span>
+                        <span id="toggleBotBtnText">{% if bot_running %}{{ _('bot_stop_btn') }}{% else %}{{                             _('bot_start_btn') }}{% endif %}</span>
                         <div class="spinner hidden" id="toggleBotSpinner" style="width:14px;height:14px;"></div>
                     </button>
                 </div>
@@ -105,28 +104,28 @@
             <form id="sslForm">
                 <div class="form-group">
                     <label class="form-label">
-                        <input type="checkbox" id="ssl_enabled" {% if settings.get('ssl', {}).get('enabled') %}checked{% endif %}>
+                        <input type="checkbox" id="ssl_enabled" {% if settings.ssl.enabled %}checked{% endif %}>
                         {{ _('enable_https') }}
                     </label>
                 </div>
                 <div class="form-group" style="margin-top: var(--space-md);">
                     <label class="form-label">{{ _('panel_port_label') }}</label>
-                    <input type="number" class="form-input" id="panel_port" value="{{ settings.get('ssl', {}).get('panel_port', 5000) }}" placeholder="5000">
+                    <input type="number" class="form-input" id="panel_port" value="{{ settings.ssl.panel_port|default:'5000' }}" placeholder="5000">
                 </div>
-                <div id="sslFields" style="{% if not settings.get('ssl', {}).get('enabled') %}display:none;{% endif %} margin-top: var(--space-md);">
+                <div id="sslFields" style="{% if not settings.ssl.enabled %}display:none;{% endif %} margin-top: var(--space-md);">
                     <div class="form-group">
                         <label class="form-label">{{ _('domain_label') }}</label>
-                        <input type="text" class="form-input" id="ssl_domain" value="{{ settings.get('ssl', {}).get('domain', '') }}" placeholder="vpn.example.com">
+                        <input type="text" class="form-input" id="ssl_domain" value="{{ settings.ssl.domain|default:'' }}" placeholder="vpn.example.com">
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
                         <div class="form-group">
                             <label class="form-label">{{ _('cert_path_label') }}</label>
-                            <input type="text" class="form-input" id="ssl_cert_path" value="{{ settings.get('ssl', {}).get('cert_path', '') }}" placeholder="/etc/amnezia/cert.pem">
+                            <input type="text" class="form-input" id="ssl_cert_path" value="{{ settings.ssl.cert_path|default:'' }}" placeholder="/etc/amnezia/cert.pem">
                         </div>
                         <div class="form-group">
                             <label class="form-label">{{ _('key_path_label') }}</label>
-                            <input type="text" class="form-input" id="ssl_key_path" value="{{ settings.get('ssl', {}).get('key_path', '') }}" placeholder="/etc/amnezia/key.pem">
+                            <input type="text" class="form-input" id="ssl_key_path" value="{{ settings.ssl.key_path|default:'' }}" placeholder="/etc/amnezia/key.pem">
                         </div>
                     </div>
 
@@ -134,11 +133,11 @@
 
                     <div class="form-group">
                         <label class="form-label">{{ _('cert_text_label') }}</label>
-                        <textarea class="form-input" id="ssl_cert_text" rows="4" placeholder="-----BEGIN CERTIFICATE----- ...">{{ settings.get('ssl', {}).get('cert_text', '') }}</textarea>
+                        <textarea class="form-input" id="ssl_cert_text" rows="4" placeholder="-----BEGIN CERTIFICATE----- ...">{{ settings.ssl.cert_text|default:'' }}</textarea>
                     </div>
                     <div class="form-group">
                         <label class="form-label">{{ _('key_text_label') }}</label>
-                        <textarea class="form-input" id="ssl_key_text" rows="4" placeholder="-----BEGIN PRIVATE KEY----- ...">{{ settings.get('ssl', {}).get('key_text', '') }}</textarea>
+                        <textarea class="form-input" id="ssl_key_text" rows="4" placeholder="-----BEGIN PRIVATE KEY----- ...">{{ settings.ssl.key_text|default:'' }}</textarea>
                     </div>
 
                     <p class="form-hint">{{ _('ssl_hint') }}</p>
@@ -280,7 +279,7 @@
 </div>
 
 <script>
-    const botCurrentlyRunning = {{ 'true' if bot_running else 'false' }};
+    const botCurrentlyRunning = {% if bot_running %}true{% else %}false{% endif %};
 
     document.getElementById('ssl_enabled').addEventListener('change', (e) => {
         document.getElementById('sslFields').style.display = e.target.checked ? 'block' : 'none';
@@ -411,7 +410,7 @@
         const downloadBtn = document.getElementById('downloadUpdateBtn');
         
         btn.disabled = true;
-        text.textContent = "{{ _('checking_updates')|default('Checking...') }}";
+        text.textContent = "{{ _('checking_updates')|default:'Checking...' }}";
         spinner.classList.remove('hidden');
         statusDiv.classList.add('hidden');
         downloadBtn.classList.add('hidden');
@@ -427,19 +426,19 @@
             statusDiv.classList.remove('hidden');
             
             if (latestVersion !== currentVersion && latestVersion) {
-                statusDiv.innerHTML = `<span style="color: var(--success); font-weight: bold;">{{ _('update_available')|default('Update available') }}: ${latestVersion}</span>`;
+                statusDiv.innerHTML = `<span style="color: var(--success); font-weight: bold;">{{ _('update_available')|default:'Update available' }}: ${latestVersion}</span>`;
                 statusDiv.style.border = '1px solid var(--success)';
                 downloadBtn.href = data.html_url;
                 downloadBtn.classList.remove('hidden');
             } else {
-                statusDiv.innerHTML = `<span style="color: var(--text-muted);">{{ _('up_to_date')|default('Up to date') }}</span>`;
+                statusDiv.innerHTML = `<span style="color: var(--text-muted);">{{ _('up_to_date')|default:'Up to date' }}</span>`;
                 statusDiv.style.border = '1px solid var(--border-color)';
             }
         } catch (err) {
             showToast('Failed to check for updates: ' + err.message, 'error');
         } finally {
             btn.disabled = false;
-            text.textContent = "🔄 {{ _('check_updates')|default('Check for updates') }}";
+            text.textContent = "🔄 {{ _('check_updates')|default:'Check for updates' }}";
             spinner.classList.add('hidden');
         }
     }

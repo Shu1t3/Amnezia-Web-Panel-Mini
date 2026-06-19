@@ -1,6 +1,6 @@
 # Amnezia Web Panel Mini
 
-Современный веб-интерфейс для управления сервисами **AmneziaWG**, **Classic WireGuard**, **Xray (XTLS-Reality)**, **Telemt (Telegram MTProxy)**, **AmneziaDNS**, **AdGuard Home** и **SOCKS5** на удалённых Ubuntu-серверах — из единой панели управления.
+Современный веб-интерфейс для управления сервисами **AmneziaWG**, **Classic WireGuard**, **Telemt (Telegram MTProxy)**, **AmneziaDNS**, **AdGuard Home** и **SOCKS5** на удалённых Ubuntu-серверах — из единой панели управления.
 
 ## Совместимость с официальным клиентом Amnezia
 
@@ -41,7 +41,6 @@
 ### Протоколы VPN
 - **AmneziaWG (AWG / AWG 2.0 / AWG Legacy)** — продвинутый протокол на базе WireGuard с обфускацией S3/S4 для обхода DPI. Три варианта — современный AWG 2.0 и легаси для старых клиентов.
 - **Classic WireGuard** — стандартный высокопроизводительный протокол с поддержкой мониторинга трафика.
-- **Xray (XTLS-Reality)** — маскирует VPN-трафик под стандартный HTTPS. Совместим с конфигурациями официального клиента Amnezia.
 - **Telemt (Telegram MTProxy)** — высокопроизводительный Telegram MTProxy с эмуляцией TLS и управлением (квоты, лимиты IP, отслеживание сессий).
 
 ### Сервисы
@@ -80,27 +79,23 @@
 
 ### База данных
 - **SQLite** — данные хранятся в файле `panel.db` (создаётся автоматически)
-- Полная асинхронность через `aiosqlite`
-- TTL-кеш для пользователей, серверов и SSH-запросов
 - Бэкап и восстановление одним файлом `.db`
 
 ## Предустановка
 
-- **Python 3.10+**
+- **Go 1.21+**
 - Целевые серверы: **Ubuntu 20.04/22.04/24.04** (x86_64 или ARM64)
 - SSH-доступ к целевым серверам (по паролю или SSH-ключу)
 
 ## Установка
 
-### Способ 1: Python
+### Способ 1: Go
 
 ```bash
 git clone https://github.com/PRVTPRO/Amnezia-Web-Panel.git
 cd Amnezia-Web-Panel
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-python app.py
+go build -o panel ./cmd/panel
+./panel
 ```
 
 Панель будет доступна по адресу `http://localhost:8000`.
@@ -138,62 +133,55 @@ docker run -d -p 8000:8000 -v panel_data:/data prvtpro/amnezia-panel:latest
 ## Структура проекта
 
 ```
-web-panel/
-├── app.py                    # Точка входа FastAPI + все маршруты
-├── telegram_bot.py           # Интеграция с Telegram ботом
-├── managers/
-│   ├── db.py                 # Асинхронный слой работы с SQLite
-│   ├── cache.py              # TTL-кеш для данных и SSH
-│   ├── ssh_manager.py        # SSH-абстракция (обёртка Paramiko)
-│   ├── awg_manager.py        # AmneziaWG / AWG 2.0 / AWG Legacy
-│   ├── wireguard_manager.py  # Classic WireGuard
-│   ├── telemt_manager.py     # Telegram MTProxy
-│   ├── dns_manager.py        # AmneziaDNS (Unbound)
-│   ├── adguard_manager.py    # AdGuard Home
-│   └── socks5_manager.py     # 3proxy-based SOCKS5
-├── protocol_telemt/          # Файлы конфигурации Telemt (Dockerfile, compose, config.toml)
-├── static/                   # CSS / favicon / JS
-├── templates/                # Jinja2 шаблоны
-├── translations/             # ru / en / fr / zh / fa
-├── requirements.txt          # Зависимости Python
-├── Dockerfile                # Многоэтапная сборка Docker
-├── docker-compose.yml        # Docker Compose конфигурация
-├── panel.db                  # SQLite база данных (создаётся автоматически)
-└── CHANGELOG.md              # Журнал изменений
-```
-
-## API Документация
-
-Панель включает самодокументирующиеся API-эндпоинты:
-
-- **Swagger UI**: `/docs`
-- **ReDoc**: `/redoc`
-
-### Аутентификация для внешней интеграции
-
-Поддерживаются как session cookies, так и `Authorization: Bearer <token>`:
-
-```bash
-TOKEN="awp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
-# Список пользователей
-curl -H "Authorization: Bearer $TOKEN" http://your-panel:8000/api/users
-
-# Добавление сервера
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"host":"1.2.3.4","username":"root","password":"...","name":"new-srv"}' \
-  http://your-panel:8000/api/servers/add
-
-# Проверка доступности сервера (ID сервера берётся из /api/servers)
-curl -H "Authorization: Bearer $TOKEN" http://your-panel:8000/api/servers/1/ping
+Amnezia-Web-Panel-Mini/
+├── cmd/
+│   └── panel/
+│       └── main.go               # Точка входа
+├── internal/
+│   ├── bot/
+│   │   └── telegram_bot.go       # Telegram бот
+│   ├── database/
+│   │   ├── schema.sql            # SQL-схема
+│   │   ├── query.sql             # Определения sqlc
+│   │   ├── db_conn.go            # Инициализация БД
+│   │   └── *.go                  # Сгенерированный sqlc код
+│   ├── handlers/
+│   │   ├── routes.go             # Маршруты + middleware
+│   │   ├── auth.go               # Аутентификация
+│   │   ├── servers.go            # CRUD серверов
+│   │   ├── connections.go        # CRUD подключений
+│   │   ├── users.go              # CRUD пользователей
+│   │   ├── protocols.go          # Установка/удаление протоколов
+│   │   ├── crypto.go             # Хеширование паролей
+│   │   └── i18n.go               # Интернационализация
+│   ├── managers/
+│   │   ├── awg_manager.go        # AmneziaWG
+│   │   ├── wireguard_manager.go  # Classic WireGuard
+│   │   ├── telemt_manager.go     # Telegram MTProxy
+│   │   ├── dns_manager.go        # AmneziaDNS
+│   │   ├── adguard_manager.go    # AdGuard Home
+│   │   ├── socks5_manager.go     # SOCKS5
+│   │   ├── ssh_manager.go        # SSH/SFTP
+│   │   └── utils.go              # Утилиты
+│   └── models/
+│       └── models.go             # Структуры данных
+├── protocol_telemt/              # Docker-контекст для Telemt
+├── static/                       # CSS / favicon / JS
+├── templates/                    # Pongo2 шаблоны
+├── translations/                 # ru / en / fr / zh / fa
+├── sqlc.yaml                     # Конфигурация sqlc
+├── Dockerfile                    # Многоэтапная сборка Docker
+├── docker-compose.yml            # Docker Compose конфигурация
+├── test-and-build.sh             # CI-скрипт
+└── CHANGELOG.md                  # Журнал изменений
 ```
 
 ## Технологический стек
 
-- **Backend**: FastAPI (Python), `asyncio` для конкурентных SSH-операций
-- **Frontend**: Vanilla JS, Jinja2, CSS (Glassmorphism)
-- **База данных**: SQLite через `aiosqlite` (полная асинхронность, WAL-режим)
-- **SSH**: Paramiko
+- **Backend**: Go (Fiber v2), Pongo2 шаблоны
+- **Frontend**: Vanilla JS, CSS (Glassmorphism)
+- **База данных**: SQLite через modernc.org/sqlite (чистый Go)
+- **SSH**: golang.org/x/crypto/ssh + pkg/sftp
 
 ## Рекомендации по безопасности
 

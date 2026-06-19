@@ -17,7 +17,7 @@
         {% for server in servers %}
         <div class="card card-hover server-card" id="server-{{ server.server_id }}" data-idx="{{ server.server_id }}"
             data-name="{{ server.name }}" data-host="{{ server.host }}" data-port="{{ server.ssh_port }}"
-            data-username="{{ server.username }}" data-auth="{{ 'key' if server.private_key else 'password' }}"
+            data-username="{{ server.username }}" data-auth="{% if server.private_key %}key{% else %}password{% endif %}"
             draggable="true">
             <div class="server-meta">
                 <div class="server-icon">🖥</div>
@@ -35,7 +35,7 @@
             <div class="server-protocols" id="server-protocols-{{ server.server_id }}">
                 {% if server.protocols %}
                 {% for proto_key, proto_val in server.protocols.items() %}
-                {% if proto_val.get('installed') %}
+                {% if proto_val.installed %}
                 <span class="badge badge-success">
                     <span class="badge-dot"></span>
                     {{ proto_key | upper }}
@@ -136,8 +136,7 @@
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('editServerModal')">{{ _('cancel')
-                    }}</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editServerModal')">{{ _('cancel')                     }}</button>
                 <button type="submit" class="btn btn-primary" id="editServerBtn">
                     <span id="editServerBtnText">{{ _('save') }}</span>
                     <div class="spinner hidden" id="editServerSpinner"></div>
@@ -179,8 +178,7 @@
 
             <!-- Tabs for auth method -->
             <div class="tabs" style="margin-top: var(--space-md)">
-                <button type="button" class="tab active" onclick="switchAuthTab('password', this)">{{ _('ssh_password')
-                    }}</button>
+                <button type="button" class="tab active" onclick="switchAuthTab('password', this)">{{ _('ssh_password')                     }}</button>
                 <button type="button" class="tab" onclick="switchAuthTab('key', this)">{{ _('ssh_key') }}</button>
             </div>
 
@@ -201,8 +199,7 @@
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('addServerModal')">{{ _('cancel')
-                    }}</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addServerModal')">{{ _('cancel')                     }}</button>
                 <button type="submit" class="btn btn-primary" id="addServerBtn">
                     <span id="addServerBtnText">{{ _('connect') }}</span>
                     <div class="spinner hidden" id="addServerSpinner"></div>

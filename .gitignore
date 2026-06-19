@@ -1,22 +1,21 @@
-# Virtual Environment
-venv/
-env/
-.venv/
-
-# PyInstaller folders
+# Build artifacts
+panel
 build/
 dist/
 *.spec
 
-# Python
+# Databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Python (legacy)
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
-env/
-pip-log.txt
-pip-delete-this-directory.txt
 .tox/
 .coverage
 .coverage.*
@@ -27,18 +26,14 @@ coverage.xml
 *.log
 .pytest_cache/
 .mypy_cache/
-
-# User data
-data.json
-*.db
-*.db-journal
-*.db-wal
-*.db-shm
-.DS_Store
-.mimocode/
 .ruff_cache/
-pyproject.toml
 
 # IDEs
 .vscode/
 .idea/
+
+# OS
+.DS_Store
+
+# Agent tools
+.mimocode/

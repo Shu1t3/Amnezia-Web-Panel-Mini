@@ -18,7 +18,7 @@ services:
     restart: unless-stopped
 
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import socket; s=socket.socket(); s.connect(('localhost', 8000)); s.close()\""]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8000/login || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

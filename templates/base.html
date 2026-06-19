@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="{{ _('site_description') }}">
-    <title>{{ site_settings.title or 'Amnezia Panel' }} {% block title_extra %}{% endblock %}</title>
+    <title>{{ site_settings.title|default:'Amnezia Panel' }} {% block title_extra %}{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/css/style.css">
     <script>!function () { var t = localStorage.getItem('theme') || 'dark'; document.documentElement.setAttribute('data-theme', t) }()</script>
@@ -42,7 +42,7 @@
 
             {% if current_user %}
             <nav class="header-nav">
-                {% if current_user.role in ['admin', 'support'] %}
+                {% if current_user.role == 'admin' or current_user.role == 'support' %}
                 <a href="/" class="nav-link">{{ _('nav_servers') }}</a>
                 <a href="/users" class="nav-link">{{ _('nav_users') }}</a>
                 {% endif %}
@@ -55,14 +55,13 @@
             <div class="nav-user">
                 <button class="theme-toggle" onclick="openModal('langModal')" title="{{ _('select_lang') }}"
                     style="margin-right: var(--space-sm);">
-                    {% if lang == 'ru' %}🇷🇺{% elif lang == 'fr' %}🇫🇷{% elif lang == 'zh' %}🇨🇳{% elif lang == 'fa'
-                    %}🇮🇷{% else %}🇺🇸{% endif %}
+                    {% if lang == 'ru' %}🇷🇺{% elif lang == 'fr' %}🇫🇷{% elif lang == 'zh' %}🇨🇳{% elif lang == 'fa' %}🇮🇷{% else %}🇺🇸{% endif %}
                 </button>
                 <button class="theme-toggle" onclick="toggleTheme()" title="{{ _('toggle_theme') }}"
                     id="themeToggle">🌙</button>
                 <span class="nav-username">{{ current_user.username }}</span>
                 <span
-                    class="badge badge-{{ 'success' if current_user.role == 'admin' else ('info' if current_user.role == 'support' else 'warn') }}"
+                    class="badge badge-{% if current_user.role == 'admin' %}success{% elif current_user.role == 'support' %}info{% else %}warn{% endif %}"
                     style="font-size:0.65rem;">
                     {{ current_user.role | upper }}
                 </span>
@@ -72,8 +71,7 @@
             <div class="nav-user">
                 <button class="theme-toggle" onclick="openModal('langModal')" title="{{ _('select_lang') }}"
                     style="margin-right: var(--space-sm);">
-                    {% if lang == 'ru' %}🇷🇺{% elif lang == 'fr' %}🇫🇷{% elif lang == 'zh' %}🇨🇳{% elif lang == 'fa'
-                    %}🇮🇷{% else %}🇺🇸{% endif %}
+                    {% if lang == 'ru' %}🇷🇺{% elif lang == 'fr' %}🇫🇷{% elif lang == 'zh' %}🇨🇳{% elif lang == 'fa' %}🇮🇷{% else %}🇺🇸{% endif %}
                 </button>
                 <button class="theme-toggle" onclick="toggleTheme()" title="{{ _('toggle_theme') }}"
                     id="themeToggle">🌙</button>
@@ -94,23 +92,31 @@
                 <button class="modal-close" onclick="closeModal('langModal')">×</button>
             </div>
             <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
-                {% set langs = [
-                ('en', '🇺🇸', 'lang_en'),
-                ('ru', '🇷🇺', 'lang_ru'),
-                ('fr', '🇫🇷', 'lang_fr'),
-                ('zh', '🇨🇳', 'lang_zh'),
-                ('fa', '🇮🇷', 'lang_fa')
-                ] %}
-                {% for l_code, l_flag, l_key in langs %}
-                <a href="/set_lang/{{ l_code }}" class="btn btn-secondary"
-                    style="justify-content: flex-start; gap: var(--space-md); padding: var(--space-md);">
-                    <span style="font-size: 1.4rem;">{{ l_flag }}</span>
-                    <span style="font-weight: 500;">{{ _(l_key) }}</span>
-                    {% if lang == l_code %}
-                    <span class="lang-check">✓</span>
-                    {% endif %}
+                <a href="/set_lang/en" class="btn btn-secondary" style="justify-content: flex-start; gap: var(--space-md); padding: var(--space-md);">
+                    <span style="font-size: 1.4rem;">🇺🇸</span>
+                    <span style="font-weight: 500;">{{ _('lang_en') }}</span>
+                    {% if lang == 'en' %}<span class="lang-check">✓</span>{% endif %}
                 </a>
-                {% endfor %}
+                <a href="/set_lang/ru" class="btn btn-secondary" style="justify-content: flex-start; gap: var(--space-md); padding: var(--space-md);">
+                    <span style="font-size: 1.4rem;">🇷🇺</span>
+                    <span style="font-weight: 500;">{{ _('lang_ru') }}</span>
+                    {% if lang == 'ru' %}<span class="lang-check">✓</span>{% endif %}
+                </a>
+                <a href="/set_lang/fr" class="btn btn-secondary" style="justify-content: flex-start; gap: var(--space-md); padding: var(--space-md);">
+                    <span style="font-size: 1.4rem;">🇫🇷</span>
+                    <span style="font-weight: 500;">{{ _('lang_fr') }}</span>
+                    {% if lang == 'fr' %}<span class="lang-check">✓</span>{% endif %}
+                </a>
+                <a href="/set_lang/zh" class="btn btn-secondary" style="justify-content: flex-start; gap: var(--space-md); padding: var(--space-md);">
+                    <span style="font-size: 1.4rem;">🇨🇳</span>
+                    <span style="font-weight: 500;">{{ _('lang_zh') }}</span>
+                    {% if lang == 'zh' %}<span class="lang-check">✓</span>{% endif %}
+                </a>
+                <a href="/set_lang/fa" class="btn btn-secondary" style="justify-content: flex-start; gap: var(--space-md); padding: var(--space-md);">
+                    <span style="font-size: 1.4rem;">🇮🇷</span>
+                    <span style="font-weight: 500;">{{ _('lang_fa') }}</span>
+                    {% if lang == 'fa' %}<span class="lang-check">✓</span>{% endif %}
+                </a>
             </div>
         </div>
     </div>
