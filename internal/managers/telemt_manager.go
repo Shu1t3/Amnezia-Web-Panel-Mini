@@ -3,10 +3,10 @@ package managers
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
+	"github.com/PRVTPRO/Amnezia-Web-Panel/internal/embeds"
 	"github.com/google/uuid"
 )
 
@@ -153,11 +153,7 @@ func (m *TelemtManager) InstallProtocol(port string, tlsEmulation bool, tlsDomai
 	m.ssh.RunSudoCommand(fmt.Sprintf("mkdir -p %s", remoteDir))
 	m.ssh.RunSudoCommand(fmt.Sprintf("chmod 755 %s", remoteDir))
 
-	configBytes, err := os.ReadFile("protocol_telemt/config.toml")
-	if err != nil {
-		return nil, fmt.Errorf("failed to read local config.toml: %v", err)
-	}
-	configContent := string(configBytes)
+	configContent := string(embeds.TelemtConfigToml)
 
 	tlsEmulStr := "false"
 	if tlsEmulation {
@@ -188,17 +184,11 @@ func (m *TelemtManager) InstallProtocol(port string, tlsEmulation bool, tlsDomai
 
 	m.ssh.UploadFileSudo(configContent, fmt.Sprintf("%s/config.toml", remoteDir))
 
-	composeBytes, err := os.ReadFile("protocol_telemt/docker-compose.yml")
-	if err == nil {
-		composeContent := string(composeBytes)
-		composeContent = strings.ReplaceAll(composeContent, "\"443:443\"", fmt.Sprintf("\"%s:443\"", port))
-		m.ssh.UploadFileSudo(composeContent, fmt.Sprintf("%s/docker-compose.yml", remoteDir))
-	}
+	composeContent := string(embeds.TelemtDockerCompose)
+	composeContent = strings.ReplaceAll(composeContent, "\"443:443\"", fmt.Sprintf("\"%s:443\"", port))
+	m.ssh.UploadFileSudo(composeContent, fmt.Sprintf("%s/docker-compose.yml", remoteDir))
 
-	dockerfileBytes, err := os.ReadFile("protocol_telemt/Dockerfile")
-	if err == nil {
-		m.ssh.UploadFileSudo(string(dockerfileBytes), fmt.Sprintf("%s/Dockerfile", remoteDir))
-	}
+	m.ssh.UploadFileSudo(string(embeds.TelemtDockerfile), fmt.Sprintf("%s/Dockerfile", remoteDir))
 
 	results = append(results, "Starting Telemt container...")
 	_, _, code := m.ssh.RunSudoCommand(fmt.Sprintf("sh -c 'cd %s && docker compose up -d --build'", remoteDir))
