@@ -227,11 +227,13 @@ func handleCallback(c tele.Context) error {
 func Start() {
 	token := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if token == "" {
-		kvs, _ := database.Query.GetAllSettings(context.Background())
-		for _, kv := range kvs {
-			if kv.Key == "telegram_bot_token" {
-				token = kv.Value
-				break
+		cfgStr, err := database.Query.GetSetting(context.Background(), "telegram")
+		if err == nil {
+			var cfg map[string]interface{}
+			if json.Unmarshal([]byte(cfgStr), &cfg) == nil {
+				if t, ok := cfg["token"].(string); ok && t != "" {
+					token = t
+				}
 			}
 		}
 	}

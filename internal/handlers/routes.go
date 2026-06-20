@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"strings"
+	"time"
 
 	"github.com/PRVTPRO/Amnezia-Web-Panel/internal/database"
 	"github.com/gofiber/fiber/v2"
@@ -12,7 +13,15 @@ import (
 var store *session.Store
 
 func init() {
-	store = session.New()
+	store = session.New(session.Config{
+		CookieHTTPOnly: true,
+		CookieSameSite: "Lax",
+		Expiration:     24 * time.Hour,
+	})
+}
+
+func GetSessionStore() *session.Store {
+	return store
 }
 
 func SetupRoutes(app *fiber.App) {
@@ -106,6 +115,9 @@ func TemplateContextMiddleware(c *fiber.Ctx) error {
 		},
 	})
 
+	csrfToken, _ := c.Locals("csrf_token").(string)
+	c.Locals("csrf_token", csrfToken)
+
 	kvs, _ := database.Query.GetAllSettings(c.Context())
 	appearance := map[string]interface{}{}
 	captcha := map[string]interface{}{}
@@ -139,8 +151,7 @@ func TemplateContextMiddleware(c *fiber.Ctx) error {
 
 	c.Locals("current_version", "v2.2.0")
 
-	sess, err := store.Get(c)
-	if err == nil {
+	if sess, err := store.Get(c); err == nil {
 		if userId := sess.Get("user_id"); userId != nil {
 			idStr, _ := userId.(string)
 			users, _ := database.Query.GetUsers(c.Context())
@@ -174,6 +185,7 @@ func RenderTemplate(c *fiber.Ctx, templateName string, bind fiber.Map) error {
 	bind["translations_json"] = c.Locals("translations_json")
 	bind["all_translations_json"] = c.Locals("all_translations_json")
 	bind["current_version"] = c.Locals("current_version")
+	bind["csrf_token"] = c.Locals("csrf_token")
 
 	return c.Render(templateName, bind)
 }

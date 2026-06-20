@@ -187,7 +187,6 @@ func (m *WireGuardManager) WaitContainerRunning(timeout int) error {
 		out, _, _ := m.ssh.RunSudoCommand(fmt.Sprintf("docker inspect --format='{{.State.Status}}' %s", WgContainerName))
 		lastStatus := strings.TrimSpace(strings.Trim(out, "'\""))
 		if lastStatus == "running" {
-			time.Sleep(1 * time.Second)
 			return nil
 		}
 		time.Sleep(2 * time.Second)
@@ -259,7 +258,7 @@ tail -f /dev/null
 	m.ssh.RunCommand("rm -f /tmp/_wg_start.sh")
 
 	m.ssh.RunSudoCommand(fmt.Sprintf("docker restart %s", WgContainerName))
-	time.Sleep(5 * time.Second)
+	m.WaitContainerRunning(30)
 }
 
 func (m *WireGuardManager) RemoveContainer() {

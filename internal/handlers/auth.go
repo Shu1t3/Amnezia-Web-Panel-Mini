@@ -2,12 +2,51 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
+	"fmt"
+	"math/big"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/PRVTPRO/Amnezia-Web-Panel/internal/database"
 	"github.com/gofiber/fiber/v2"
 )
+
+type loginAttempt struct {
+	timestamp time.Time
+}
+
+var (
+	loginAttempts   = make(map[string][]loginAttempt)
+	loginAttemptsMu sync.Mutex
+)
+
+func isLoginRateLimited(ip string) bool {
+	loginAttemptsMu.Lock()
+	defer loginAttemptsMu.Unlock()
+
+	now := time.Now()
+	cutoff := now.Add(-15 * time.Minute)
+
+	attempts := loginAttempts[ip]
+	var valid []loginAttempt
+	for _, a := range attempts {
+		if a.timestamp.After(cutoff) {
+			valid = append(valid, a)
+		}
+	}
+	loginAttempts[ip] = valid
+
+	return len(valid) >= 5
+}
+
+func recordLoginAttempt(ip string) {
+	loginAttemptsMu.Lock()
+	defer loginAttemptsMu.Unlock()
+	loginAttempts[ip] = append(loginAttempts[ip], loginAttempt{timestamp: time.Now()})
+}
 
 func LoginPage(c *fiber.Ctx) error {
 	sess, err := store.Get(c)
@@ -31,11 +70,17 @@ func SetLangAction(c *fiber.Ctx) error {
 		}
 	}
 
+	validLangs := map[string]bool{"en": true, "ru": true, "fr": true, "zh": true, "fa": true}
+	if !validLangs[lang] {
+		lang = "en"
+	}
+
 	c.Cookie(&fiber.Cookie{
 		Name:     "lang",
 		Value:    lang,
 		MaxAge:   31536000,
-		HTTPOnly: false,
+		HTTPOnly: true,
+		SameSite: "Lax",
 	})
 
 	return c.Redirect(ref)
@@ -48,15 +93,76 @@ type LoginRequest struct {
 }
 
 func CaptchaAction(c *fiber.Ctx) error {
-	transparentPNG := []byte{137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 10, 73, 68, 65, 84, 120, 156, 99, 0, 1, 0, 0, 5, 0, 1, 13, 10, 45, 180, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130}
-	c.Set("Content-Type", "image/png")
-	return c.Send(transparentPNG)
+	code := generateCaptchaCode()
+
+	sess, err := store.Get(c)
+	if err == nil {
+		sess.Set("captcha_code", code)
+		sess.Save()
+	}
+
+	width := 120
+	height := 40
+	fontSize := 24
+
+	svg := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">
+<rect width="100%%" height="100%%" fill="#f0f0f0"/>
+<text x="50%%" y="50%%" dominant-baseline="central" text-anchor="middle" font-family="monospace" font-size="%d" fill="#333" letter-spacing="4">%s</text>
+</svg>`, width, height, width, height, fontSize, code)
+
+	c.Set("Content-Type", "image/svg+xml")
+	return c.SendString(svg)
+}
+
+func generateCaptchaCode() string {
+	chars := "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	code := make([]byte, 5)
+	for i := range code {
+		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		code[i] = chars[num.Int64()]
+	}
+	return string(code)
+}
+
+func verifyCaptcha(c *fiber.Ctx, input string) bool {
+	if input == "" {
+		return false
+	}
+	sess, err := store.Get(c)
+	if err != nil {
+		return false
+	}
+	stored, ok := sess.Get("captcha_code").(string)
+	if !ok || stored == "" {
+		return false
+	}
+	sess.Delete("captcha_code")
+	sess.Save()
+	return strings.EqualFold(input, stored)
 }
 
 func LoginAction(c *fiber.Ctx) error {
+	ip := c.IP()
+	if isLoginRateLimited(ip) {
+		return c.Status(429).JSON(fiber.Map{"error": "Too many login attempts. Please try again later."})
+	}
+
 	var req LoginRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
+	}
+
+	captchaCfgStr, _ := database.Query.GetSetting(c.Context(), "captcha")
+	var captchaCfg map[string]interface{}
+	if captchaCfgStr != "" {
+		json.Unmarshal([]byte(captchaCfgStr), &captchaCfg)
+	}
+	if captchaCfg != nil {
+		if enabled, ok := captchaCfg["enabled"].(bool); ok && enabled {
+			if !verifyCaptcha(c, req.Captcha) {
+				return c.Status(400).JSON(fiber.Map{"error": "Invalid CAPTCHA"})
+			}
+		}
 	}
 
 	users, _ := database.Query.GetUsers(context.Background())
@@ -85,6 +191,7 @@ func LoginAction(c *fiber.Ctx) error {
 			}
 		}
 	}
+	recordLoginAttempt(ip)
 	return c.Status(401).JSON(fiber.Map{"error": "Invalid login"})
 }
 

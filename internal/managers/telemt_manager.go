@@ -360,7 +360,7 @@ func (m *TelemtManager) RemoveClient(clientId string) {
 	var newLines []string
 	for _, line := range strings.Split(configText, "\n") {
 		stripped := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "#"))
-		if strings.HasPrefix(stripped, clientId+" ") || strings.HasPrefix(stripped, clientId+"=") {
+		if strings.HasPrefix(stripped, clientId+" ") || strings.HasPrefix(stripped, clientId+"=") || strings.HasPrefix(stripped, clientId+" =") {
 			continue
 		}
 		newLines = append(newLines, line)

@@ -320,9 +320,13 @@
         };
 
         try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const res = await fetch('/api/settings/save', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Csrf-Token': csrfToken,
+                },
                 body: JSON.stringify({ appearance, captcha, telegram, ssl })
             });
             if (!res.ok) throw new Error(_('error'));
@@ -343,7 +347,11 @@
         btn.disabled = true;
         spinner.classList.remove('hidden');
         try {
-            const res = await fetch('/api/settings/telegram/toggle', { method: 'POST' });
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            const res = await fetch('/api/settings/telegram/toggle', {
+                method: 'POST',
+                headers: { 'X-Csrf-Token': csrfToken },
+            });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || _('error'));
             const running = data.bot_running;

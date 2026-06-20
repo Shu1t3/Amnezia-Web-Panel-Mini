@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -127,7 +128,7 @@ func AddUserHandler(c *fiber.Ctx) error {
 		"telegramId":             req.TelegramId,
 		"email":                  req.Email,
 		"description":            req.Description,
-		"traffic_limit":          0, // compute properly
+		"traffic_limit":          req.TrafficLimit,
 		"traffic_reset_strategy": req.TrafficResetStrategy,
 		"traffic_used":           0,
 		"traffic_total":          0,
@@ -217,12 +218,12 @@ func DeleteUser(c *fiber.Ctx) error {
 	}
 
 	userID := c.Params("user_id")
-	err := database.Query.DeleteUser(context.Background(), userID)
-	if err != nil {
+	if err := database.Query.DeleteUserConnections(c.Context(), userID); err != nil {
+		log.Printf("Warning: failed to delete user connections: %v", err)
+	}
+	if err := database.Query.DeleteUser(c.Context(), userID); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-
-	// Optionally also delete connections logic...
 
 	return c.JSON(fiber.Map{"status": "success"})
 }
@@ -248,10 +249,12 @@ func ToggleUser(c *fiber.Ctx) error {
 	ud["enabled"] = req.Enabled
 
 	newData, _ := json.Marshal(ud)
-	database.Query.UpdateUser(context.Background(), database.UpdateUserParams{
+	if err := database.Query.UpdateUser(context.Background(), database.UpdateUserParams{
 		Data: string(newData),
 		ID:   userID,
-	})
+	}); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
 
 	return c.JSON(fiber.Map{"status": "success", "enabled": req.Enabled})
 }

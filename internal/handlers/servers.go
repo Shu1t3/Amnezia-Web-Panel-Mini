@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"math"
 	"net"
 	"strconv"
 	"strings"
@@ -16,8 +18,24 @@ import (
 )
 
 func CheckAdmin(c *fiber.Ctx) bool {
-	// TODO: Get user from DB and check role == 'admin' || 'support'
-	return true
+	sess, err := store.Get(c)
+	if err != nil || sess.Get("user_id") == nil {
+		return false
+	}
+	userID, ok := sess.Get("user_id").(string)
+	if !ok {
+		return false
+	}
+	userData, err := database.Query.GetUser(c.Context(), userID)
+	if err != nil {
+		return false
+	}
+	var ud map[string]interface{}
+	if err := json.Unmarshal([]byte(userData), &ud); err != nil {
+		return false
+	}
+	role, _ := ud["role"].(string)
+	return role == "admin" || role == "support"
 }
 
 func AddServer(c *fiber.Ctx) error {
@@ -208,10 +226,15 @@ func DeleteServer(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid server ID"})
 	}
 
-	if err := database.Query.DeleteServer(context.Background(), serverID); err != nil {
+	if err := database.Query.DeleteServerConnections(c.Context(), serverID); err != nil {
+		log.Printf("Warning: failed to delete server connections: %v", err)
+	}
+	if err := database.Query.DeleteServer(c.Context(), serverID); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-	database.Query.AdjustConnectionServerIDs(context.Background(), serverID)
+	if err := database.Query.AdjustConnectionServerIDs(c.Context(), serverID); err != nil {
+		log.Printf("Warning: failed to adjust connection IDs: %v", err)
+	}
 
 	return c.JSON(fiber.Map{"status": "success"})
 }
@@ -573,11 +596,8 @@ func GetServerStats(c *fiber.Ctx) error {
 }
 
 func mathRound(val float64, precision int) float64 {
-	ratio := 1.0
-	for i := 0; i < precision; i++ {
-		ratio *= 10.0
-	}
-	return float64(int(val*ratio+0.5)) / ratio
+	ratio := math.Pow(10, float64(precision))
+	return math.Round(val*ratio) / ratio
 }
 
 func RebootServer(c *fiber.Ctx) error {

@@ -42,7 +42,6 @@ var AwgDefaults = map[string]string{
 }
 
 func GenerateAwgParams() map[string]string {
-	rand.Seed(time.Now().UnixNano())
 	jmin := rand.Intn(16) + 5 // 5 to 20
 	return map[string]string{
 		"junk_packet_count":             strconv.Itoa(rand.Intn(10) + 1),
@@ -220,7 +219,6 @@ func (m *AWGManager) WaitContainerRunning(timeout int) error {
 		out, _, _ := m.ssh.RunSudoCommand(fmt.Sprintf("docker inspect --format='{{.State.Status}}' %s", AwgContainerName))
 		lastStatus := strings.TrimSpace(strings.Trim(out, "'\""))
 		if lastStatus == "running" {
-			time.Sleep(1 * time.Second)
 			return nil
 		}
 		time.Sleep(2 * time.Second)
@@ -308,7 +306,7 @@ tail -f /dev/null
 	m.ssh.RunCommand("rm -f /tmp/_amnz_start.sh")
 
 	m.ssh.RunSudoCommand(fmt.Sprintf("docker restart %s", AwgContainerName))
-	time.Sleep(5 * time.Second)
+	m.WaitContainerRunning(30)
 }
 
 func (m *AWGManager) RemoveContainer() {

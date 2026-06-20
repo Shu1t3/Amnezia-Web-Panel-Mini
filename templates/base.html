@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <meta name="description" content="{{ _('site_description') }}">
     <title>{{ site_settings.title|default:'Amnezia Panel' }} {% block title_extra %}{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
@@ -220,9 +221,13 @@
 
         /* ===== API Helper ===== */
         async function apiCall(url, method = 'GET', body = null) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const opts = {
                 method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Csrf-Token': csrfToken,
+                },
             };
             if (body) opts.body = JSON.stringify(body);
 

@@ -9,6 +9,10 @@ dist/
 *.db-journal
 *.db-wal
 *.db-shm
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
 
 # Python (legacy)
 __pycache__/

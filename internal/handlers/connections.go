@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/PRVTPRO/Amnezia-Web-Panel/internal/database"
@@ -168,14 +169,16 @@ func AddConnection(c *fiber.Ctx) error {
 				CreatedAt: "now",
 			}
 			connBytes, _ := json.Marshal(connData)
-			database.Query.AddConnection(context.Background(), database.AddConnectionParams{
+			if err := database.Query.AddConnection(context.Background(), database.AddConnectionParams{
 				ID:       connID,
 				UserID:   req.UserID,
 				ServerID: serverID,
 				Protocol: req.Protocol,
 				ClientID: clientID,
 				Data:     string(connBytes),
-			})
+			}); err != nil {
+				log.Printf("Warning: failed to save connection: %v", err)
+			}
 		}
 	}
 

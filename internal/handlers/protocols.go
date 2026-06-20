@@ -65,7 +65,10 @@ func InstallProtocol(c *fiber.Ctx) error {
 		result = res
 	case "wireguard":
 		mgr := managers.NewWireGuardManager(ssh)
-		res, _ := mgr.InstallProtocol(req.Port)
+		res, err := mgr.InstallProtocol(req.Port)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
 		result = res
 	case "socks5":
 		mgr := managers.NewSocks5Manager(ssh)
@@ -80,11 +83,17 @@ func InstallProtocol(c *fiber.Ctx) error {
 		result = mgr.InstallProtocol(mode, req.AdguardWebPort, dnsPort, req.AdguardDotPort, req.AdguardDohPort, req.AdguardExposeWeb, req.AdguardExposeDns, req.AdguardExposeDot, req.AdguardExposeDoh)
 	case "dns":
 		mgr := managers.NewDNSManager(ssh)
-		res, _ := mgr.InstallProtocol(req.Port)
+		res, err := mgr.InstallProtocol(req.Port)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
 		result = res
 	case "awg2":
 		mgr := managers.NewAWGManager(ssh)
-		res, _ := mgr.InstallProtocol(req.Port, nil)
+		res, err := mgr.InstallProtocol(req.Port, nil)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
 		result = res
 	}
 
