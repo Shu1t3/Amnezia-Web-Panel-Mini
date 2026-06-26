@@ -309,9 +309,12 @@ func TestGetUserByUsername(t *testing.T) {
 	}
 
 	var ud map[string]interface{}
-	json.Unmarshal([]byte(got), &ud)
+	json.Unmarshal([]byte(got.Data), &ud)
 	if ud["username"] != "findme" {
 		t.Errorf("expected username 'findme', got '%v'", ud["username"])
+	}
+	if got.ID != "u1" {
+		t.Errorf("expected id 'u1', got '%v'", got.ID)
 	}
 }
 

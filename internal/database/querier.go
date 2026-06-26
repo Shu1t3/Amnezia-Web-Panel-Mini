@@ -27,9 +27,10 @@ type Querier interface {
 	GetServers(ctx context.Context) ([]Server, error)
 	GetSetting(ctx context.Context, key string) (string, error)
 	GetUser(ctx context.Context, id string) (string, error)
-	GetUserByUsername(ctx context.Context, data string) (string, error)
+	GetUserByUsername(ctx context.Context, data string) (User, error)
 	GetUserConnections(ctx context.Context, userID string) ([]string, error)
 	GetUsers(ctx context.Context) ([]User, error)
+	GetUsersConnectionCounts(ctx context.Context) ([]GetUsersConnectionCountsRow, error)
 	HasUsers(ctx context.Context) (int64, error)
 	ReorderServersUpdateIDTemp(ctx context.Context, arg ReorderServersUpdateIDTempParams) error
 	ReorderUserConnectionsNegative(ctx context.Context) error

@@ -5,9 +5,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/PRVTPRO/Amnezia-Web-Panel/internal/cache"
 )
 
 var translations = make(map[string]map[string]string)
+var translationsCache = cache.NewTranslationsCache()
 
 func LoadTranslations(transDir string) {
 	entries, err := os.ReadDir(transDir)
@@ -26,6 +29,7 @@ func LoadTranslations(transDir string) {
 			}
 		}
 	}
+	translationsCache.Load(translations)
 }
 
 func GetTranslation(lang, textID string) string {

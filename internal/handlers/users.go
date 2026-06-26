@@ -313,23 +313,18 @@ func UsersPage(c *fiber.Ctx) error {
 		return c.Status(500).SendString(err.Error())
 	}
 
-	var usersList []map[string]interface{}
-	conns, _ := database.Query.GetAllUserConnections(c.Context())
+	connCounts, _ := database.Query.GetUsersConnectionCounts(c.Context())
+	countMap := make(map[string]int)
+	for _, cc := range connCounts {
+		countMap[cc.UserID] = int(cc.Count)
+	}
 
+	var usersList []map[string]interface{}
 	for _, u := range users {
 		var ud map[string]interface{}
 		if err := json.Unmarshal([]byte(u.Data), &ud); err == nil {
 			ud["id"] = u.ID
-			connsCount := 0
-			for _, connStr := range conns {
-				var connData map[string]interface{}
-				if json.Unmarshal([]byte(connStr), &connData) == nil {
-					if connData["user_id"] == u.ID {
-						connsCount++
-					}
-				}
-			}
-			ud["connections_count"] = connsCount
+			ud["connections_count"] = countMap[u.ID]
 			usersList = append(usersList, ud)
 		}
 	}

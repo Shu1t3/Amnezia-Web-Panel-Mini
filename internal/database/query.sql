@@ -45,7 +45,7 @@ SELECT id, data FROM users;
 SELECT data FROM users WHERE id = ? LIMIT 1;
 
 -- name: GetUserByUsername :one
-SELECT data FROM users WHERE json_extract(data, '$.username') = ? LIMIT 1;
+SELECT id, data FROM users WHERE json_extract(data, '$.username') = ? LIMIT 1;
 
 -- name: AddUser :exec
 INSERT INTO users (id, data) VALUES (?, ?)
@@ -68,6 +68,11 @@ SELECT data FROM user_connections WHERE user_id = ?;
 
 -- name: GetAllUserConnections :many
 SELECT data FROM user_connections;
+
+-- name: GetUsersConnectionCounts :many
+SELECT user_id, COUNT(*) as count
+FROM user_connections
+GROUP BY user_id;
 
 -- name: GetServerConnections :many
 SELECT data FROM user_connections WHERE server_id = ?;

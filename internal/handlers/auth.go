@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -46,6 +45,30 @@ func recordLoginAttempt(ip string) {
 	loginAttemptsMu.Lock()
 	defer loginAttemptsMu.Unlock()
 	loginAttempts[ip] = append(loginAttempts[ip], loginAttempt{timestamp: time.Now()})
+}
+
+func init() {
+	go func() {
+		for {
+			time.Sleep(5 * time.Minute)
+			loginAttemptsMu.Lock()
+			now := time.Now()
+			for ip, attempts := range loginAttempts {
+				var valid []loginAttempt
+				for _, a := range attempts {
+					if now.Sub(a.timestamp) < 15*time.Minute {
+						valid = append(valid, a)
+					}
+				}
+				if len(valid) == 0 {
+					delete(loginAttempts, ip)
+				} else {
+					loginAttempts[ip] = valid
+				}
+			}
+			loginAttemptsMu.Unlock()
+		}
+	}()
 }
 
 func LoginPage(c *fiber.Ctx) error {
@@ -165,30 +188,33 @@ func LoginAction(c *fiber.Ctx) error {
 		}
 	}
 
-	users, _ := database.Query.GetUsers(context.Background())
-	for _, u := range users {
-		var ud map[string]interface{}
-		json.Unmarshal([]byte(u.Data), &ud)
-		if uname, ok := ud["username"].(string); ok && uname == req.Username {
-			if hash, ok := ud["password_hash"].(string); ok {
-				if VerifyPassword(req.Password, hash) {
-					role := "user"
-					if r, ok := ud["role"].(string); ok {
-						role = r
-					}
-					enabled := true
-					if e, ok := ud["enabled"].(bool); ok {
-						enabled = e
-					}
-					if !enabled {
-						return c.Status(403).JSON(fiber.Map{"error": "Account disabled"})
-					}
-					sess, _ := store.Get(c)
-					sess.Set("user_id", u.ID)
-					sess.Save()
-					return c.JSON(fiber.Map{"status": "success", "role": role})
-				}
+	user, err := database.Query.GetUserByUsername(c.Context(), req.Username)
+	if err != nil {
+		recordLoginAttempt(ip)
+		return c.Status(401).JSON(fiber.Map{"error": "Invalid login"})
+	}
+
+	var ud map[string]interface{}
+	json.Unmarshal([]byte(user.Data), &ud)
+
+	if hash, ok := ud["password_hash"].(string); ok {
+		if VerifyPassword(req.Password, hash) {
+			role := "user"
+			if r, ok := ud["role"].(string); ok {
+				role = r
 			}
+			enabled := true
+			if e, ok := ud["enabled"].(bool); ok {
+				enabled = e
+			}
+			if !enabled {
+				return c.Status(403).JSON(fiber.Map{"error": "Account disabled"})
+			}
+
+			sess, _ := store.Get(c)
+			sess.Set("user_id", user.ID)
+			sess.Save()
+			return c.JSON(fiber.Map{"status": "success", "role": role})
 		}
 	}
 	recordLoginAttempt(ip)
@@ -334,6 +360,8 @@ func SaveSettingsAction(c *fiber.Ctx) error {
 		database.Query.SetSetting(c.Context(), database.SetSettingParams{Key: "ssl", Value: string(sslBytes)})
 	}
 
+	settingsCache.Invalidate()
+
 	return c.JSON(fiber.Map{"status": "success"})
 }
 
@@ -367,6 +395,8 @@ func ToggleTelegramAction(c *fiber.Ctx) error {
 		Key:   "telegram",
 		Value: string(cfgBytes),
 	})
+
+	settingsCache.Invalidate()
 
 	return c.JSON(fiber.Map{"status": "success"})
 }

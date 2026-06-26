@@ -7,6 +7,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type DBTX interface {
@@ -20,12 +21,358 @@ func New(db DBTX) *Queries {
 	return &Queries{db: db}
 }
 
+func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
+	q := Queries{db: db}
+	var err error
+	if q.addConnectionStmt, err = db.PrepareContext(ctx, addConnection); err != nil {
+		return nil, fmt.Errorf("error preparing query AddConnection: %w", err)
+	}
+	if q.addServerStmt, err = db.PrepareContext(ctx, addServer); err != nil {
+		return nil, fmt.Errorf("error preparing query AddServer: %w", err)
+	}
+	if q.addUserStmt, err = db.PrepareContext(ctx, addUser); err != nil {
+		return nil, fmt.Errorf("error preparing query AddUser: %w", err)
+	}
+	if q.adjustConnectionServerIDsStmt, err = db.PrepareContext(ctx, adjustConnectionServerIDs); err != nil {
+		return nil, fmt.Errorf("error preparing query AdjustConnectionServerIDs: %w", err)
+	}
+	if q.deleteConnectionStmt, err = db.PrepareContext(ctx, deleteConnection); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteConnection: %w", err)
+	}
+	if q.deleteServerStmt, err = db.PrepareContext(ctx, deleteServer); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteServer: %w", err)
+	}
+	if q.deleteServerConnectionsStmt, err = db.PrepareContext(ctx, deleteServerConnections); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteServerConnections: %w", err)
+	}
+	if q.deleteUserStmt, err = db.PrepareContext(ctx, deleteUser); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteUser: %w", err)
+	}
+	if q.deleteUserConnectionsStmt, err = db.PrepareContext(ctx, deleteUserConnections); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteUserConnections: %w", err)
+	}
+	if q.getAllSettingsStmt, err = db.PrepareContext(ctx, getAllSettings); err != nil {
+		return nil, fmt.Errorf("error preparing query GetAllSettings: %w", err)
+	}
+	if q.getAllUserConnectionsStmt, err = db.PrepareContext(ctx, getAllUserConnections); err != nil {
+		return nil, fmt.Errorf("error preparing query GetAllUserConnections: %w", err)
+	}
+	if q.getConnectionByClientStmt, err = db.PrepareContext(ctx, getConnectionByClient); err != nil {
+		return nil, fmt.Errorf("error preparing query GetConnectionByClient: %w", err)
+	}
+	if q.getServerStmt, err = db.PrepareContext(ctx, getServer); err != nil {
+		return nil, fmt.Errorf("error preparing query GetServer: %w", err)
+	}
+	if q.getServerConnectionsStmt, err = db.PrepareContext(ctx, getServerConnections); err != nil {
+		return nil, fmt.Errorf("error preparing query GetServerConnections: %w", err)
+	}
+	if q.getServerConnectionsByProtocolStmt, err = db.PrepareContext(ctx, getServerConnectionsByProtocol); err != nil {
+		return nil, fmt.Errorf("error preparing query GetServerConnectionsByProtocol: %w", err)
+	}
+	if q.getServersStmt, err = db.PrepareContext(ctx, getServers); err != nil {
+		return nil, fmt.Errorf("error preparing query GetServers: %w", err)
+	}
+	if q.getSettingStmt, err = db.PrepareContext(ctx, getSetting); err != nil {
+		return nil, fmt.Errorf("error preparing query GetSetting: %w", err)
+	}
+	if q.getUserStmt, err = db.PrepareContext(ctx, getUser); err != nil {
+		return nil, fmt.Errorf("error preparing query GetUser: %w", err)
+	}
+	if q.getUserByUsernameStmt, err = db.PrepareContext(ctx, getUserByUsername); err != nil {
+		return nil, fmt.Errorf("error preparing query GetUserByUsername: %w", err)
+	}
+	if q.getUserConnectionsStmt, err = db.PrepareContext(ctx, getUserConnections); err != nil {
+		return nil, fmt.Errorf("error preparing query GetUserConnections: %w", err)
+	}
+	if q.getUsersStmt, err = db.PrepareContext(ctx, getUsers); err != nil {
+		return nil, fmt.Errorf("error preparing query GetUsers: %w", err)
+	}
+	if q.getUsersConnectionCountsStmt, err = db.PrepareContext(ctx, getUsersConnectionCounts); err != nil {
+		return nil, fmt.Errorf("error preparing query GetUsersConnectionCounts: %w", err)
+	}
+	if q.hasUsersStmt, err = db.PrepareContext(ctx, hasUsers); err != nil {
+		return nil, fmt.Errorf("error preparing query HasUsers: %w", err)
+	}
+	if q.reorderServersUpdateIDTempStmt, err = db.PrepareContext(ctx, reorderServersUpdateIDTemp); err != nil {
+		return nil, fmt.Errorf("error preparing query ReorderServersUpdateIDTemp: %w", err)
+	}
+	if q.reorderUserConnectionsNegativeStmt, err = db.PrepareContext(ctx, reorderUserConnectionsNegative); err != nil {
+		return nil, fmt.Errorf("error preparing query ReorderUserConnectionsNegative: %w", err)
+	}
+	if q.reorderUserConnectionsUpdateServerIDTempStmt, err = db.PrepareContext(ctx, reorderUserConnectionsUpdateServerIDTemp); err != nil {
+		return nil, fmt.Errorf("error preparing query ReorderUserConnectionsUpdateServerIDTemp: %w", err)
+	}
+	if q.setSettingStmt, err = db.PrepareContext(ctx, setSetting); err != nil {
+		return nil, fmt.Errorf("error preparing query SetSetting: %w", err)
+	}
+	if q.updateConnectionStmt, err = db.PrepareContext(ctx, updateConnection); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateConnection: %w", err)
+	}
+	if q.updateServerStmt, err = db.PrepareContext(ctx, updateServer); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateServer: %w", err)
+	}
+	if q.updateUserStmt, err = db.PrepareContext(ctx, updateUser); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateUser: %w", err)
+	}
+	return &q, nil
+}
+
+func (q *Queries) Close() error {
+	var err error
+	if q.addConnectionStmt != nil {
+		if cerr := q.addConnectionStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing addConnectionStmt: %w", cerr)
+		}
+	}
+	if q.addServerStmt != nil {
+		if cerr := q.addServerStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing addServerStmt: %w", cerr)
+		}
+	}
+	if q.addUserStmt != nil {
+		if cerr := q.addUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing addUserStmt: %w", cerr)
+		}
+	}
+	if q.adjustConnectionServerIDsStmt != nil {
+		if cerr := q.adjustConnectionServerIDsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing adjustConnectionServerIDsStmt: %w", cerr)
+		}
+	}
+	if q.deleteConnectionStmt != nil {
+		if cerr := q.deleteConnectionStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteConnectionStmt: %w", cerr)
+		}
+	}
+	if q.deleteServerStmt != nil {
+		if cerr := q.deleteServerStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteServerStmt: %w", cerr)
+		}
+	}
+	if q.deleteServerConnectionsStmt != nil {
+		if cerr := q.deleteServerConnectionsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteServerConnectionsStmt: %w", cerr)
+		}
+	}
+	if q.deleteUserStmt != nil {
+		if cerr := q.deleteUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteUserStmt: %w", cerr)
+		}
+	}
+	if q.deleteUserConnectionsStmt != nil {
+		if cerr := q.deleteUserConnectionsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteUserConnectionsStmt: %w", cerr)
+		}
+	}
+	if q.getAllSettingsStmt != nil {
+		if cerr := q.getAllSettingsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getAllSettingsStmt: %w", cerr)
+		}
+	}
+	if q.getAllUserConnectionsStmt != nil {
+		if cerr := q.getAllUserConnectionsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getAllUserConnectionsStmt: %w", cerr)
+		}
+	}
+	if q.getConnectionByClientStmt != nil {
+		if cerr := q.getConnectionByClientStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getConnectionByClientStmt: %w", cerr)
+		}
+	}
+	if q.getServerStmt != nil {
+		if cerr := q.getServerStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getServerStmt: %w", cerr)
+		}
+	}
+	if q.getServerConnectionsStmt != nil {
+		if cerr := q.getServerConnectionsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getServerConnectionsStmt: %w", cerr)
+		}
+	}
+	if q.getServerConnectionsByProtocolStmt != nil {
+		if cerr := q.getServerConnectionsByProtocolStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getServerConnectionsByProtocolStmt: %w", cerr)
+		}
+	}
+	if q.getServersStmt != nil {
+		if cerr := q.getServersStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getServersStmt: %w", cerr)
+		}
+	}
+	if q.getSettingStmt != nil {
+		if cerr := q.getSettingStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getSettingStmt: %w", cerr)
+		}
+	}
+	if q.getUserStmt != nil {
+		if cerr := q.getUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getUserStmt: %w", cerr)
+		}
+	}
+	if q.getUserByUsernameStmt != nil {
+		if cerr := q.getUserByUsernameStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getUserByUsernameStmt: %w", cerr)
+		}
+	}
+	if q.getUserConnectionsStmt != nil {
+		if cerr := q.getUserConnectionsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getUserConnectionsStmt: %w", cerr)
+		}
+	}
+	if q.getUsersStmt != nil {
+		if cerr := q.getUsersStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getUsersStmt: %w", cerr)
+		}
+	}
+	if q.getUsersConnectionCountsStmt != nil {
+		if cerr := q.getUsersConnectionCountsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getUsersConnectionCountsStmt: %w", cerr)
+		}
+	}
+	if q.hasUsersStmt != nil {
+		if cerr := q.hasUsersStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing hasUsersStmt: %w", cerr)
+		}
+	}
+	if q.reorderServersUpdateIDTempStmt != nil {
+		if cerr := q.reorderServersUpdateIDTempStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing reorderServersUpdateIDTempStmt: %w", cerr)
+		}
+	}
+	if q.reorderUserConnectionsNegativeStmt != nil {
+		if cerr := q.reorderUserConnectionsNegativeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing reorderUserConnectionsNegativeStmt: %w", cerr)
+		}
+	}
+	if q.reorderUserConnectionsUpdateServerIDTempStmt != nil {
+		if cerr := q.reorderUserConnectionsUpdateServerIDTempStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing reorderUserConnectionsUpdateServerIDTempStmt: %w", cerr)
+		}
+	}
+	if q.setSettingStmt != nil {
+		if cerr := q.setSettingStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setSettingStmt: %w", cerr)
+		}
+	}
+	if q.updateConnectionStmt != nil {
+		if cerr := q.updateConnectionStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateConnectionStmt: %w", cerr)
+		}
+	}
+	if q.updateServerStmt != nil {
+		if cerr := q.updateServerStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateServerStmt: %w", cerr)
+		}
+	}
+	if q.updateUserStmt != nil {
+		if cerr := q.updateUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateUserStmt: %w", cerr)
+		}
+	}
+	return err
+}
+
+func (q *Queries) exec(ctx context.Context, stmt *sql.Stmt, query string, args ...interface{}) (sql.Result, error) {
+	switch {
+	case stmt != nil && q.tx != nil:
+		return q.tx.StmtContext(ctx, stmt).ExecContext(ctx, args...)
+	case stmt != nil:
+		return stmt.ExecContext(ctx, args...)
+	default:
+		return q.db.ExecContext(ctx, query, args...)
+	}
+}
+
+func (q *Queries) query(ctx context.Context, stmt *sql.Stmt, query string, args ...interface{}) (*sql.Rows, error) {
+	switch {
+	case stmt != nil && q.tx != nil:
+		return q.tx.StmtContext(ctx, stmt).QueryContext(ctx, args...)
+	case stmt != nil:
+		return stmt.QueryContext(ctx, args...)
+	default:
+		return q.db.QueryContext(ctx, query, args...)
+	}
+}
+
+func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, args ...interface{}) *sql.Row {
+	switch {
+	case stmt != nil && q.tx != nil:
+		return q.tx.StmtContext(ctx, stmt).QueryRowContext(ctx, args...)
+	case stmt != nil:
+		return stmt.QueryRowContext(ctx, args...)
+	default:
+		return q.db.QueryRowContext(ctx, query, args...)
+	}
+}
+
 type Queries struct {
-	db DBTX
+	db                                           DBTX
+	tx                                           *sql.Tx
+	addConnectionStmt                            *sql.Stmt
+	addServerStmt                                *sql.Stmt
+	addUserStmt                                  *sql.Stmt
+	adjustConnectionServerIDsStmt                *sql.Stmt
+	deleteConnectionStmt                         *sql.Stmt
+	deleteServerStmt                             *sql.Stmt
+	deleteServerConnectionsStmt                  *sql.Stmt
+	deleteUserStmt                               *sql.Stmt
+	deleteUserConnectionsStmt                    *sql.Stmt
+	getAllSettingsStmt                           *sql.Stmt
+	getAllUserConnectionsStmt                    *sql.Stmt
+	getConnectionByClientStmt                    *sql.Stmt
+	getServerStmt                                *sql.Stmt
+	getServerConnectionsStmt                     *sql.Stmt
+	getServerConnectionsByProtocolStmt           *sql.Stmt
+	getServersStmt                               *sql.Stmt
+	getSettingStmt                               *sql.Stmt
+	getUserStmt                                  *sql.Stmt
+	getUserByUsernameStmt                        *sql.Stmt
+	getUserConnectionsStmt                       *sql.Stmt
+	getUsersStmt                                 *sql.Stmt
+	getUsersConnectionCountsStmt                 *sql.Stmt
+	hasUsersStmt                                 *sql.Stmt
+	reorderServersUpdateIDTempStmt               *sql.Stmt
+	reorderUserConnectionsNegativeStmt           *sql.Stmt
+	reorderUserConnectionsUpdateServerIDTempStmt *sql.Stmt
+	setSettingStmt                               *sql.Stmt
+	updateConnectionStmt                         *sql.Stmt
+	updateServerStmt                             *sql.Stmt
+	updateUserStmt                               *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db: tx,
+		db:                                 tx,
+		tx:                                 tx,
+		addConnectionStmt:                  q.addConnectionStmt,
+		addServerStmt:                      q.addServerStmt,
+		addUserStmt:                        q.addUserStmt,
+		adjustConnectionServerIDsStmt:      q.adjustConnectionServerIDsStmt,
+		deleteConnectionStmt:               q.deleteConnectionStmt,
+		deleteServerStmt:                   q.deleteServerStmt,
+		deleteServerConnectionsStmt:        q.deleteServerConnectionsStmt,
+		deleteUserStmt:                     q.deleteUserStmt,
+		deleteUserConnectionsStmt:          q.deleteUserConnectionsStmt,
+		getAllSettingsStmt:                 q.getAllSettingsStmt,
+		getAllUserConnectionsStmt:          q.getAllUserConnectionsStmt,
+		getConnectionByClientStmt:          q.getConnectionByClientStmt,
+		getServerStmt:                      q.getServerStmt,
+		getServerConnectionsStmt:           q.getServerConnectionsStmt,
+		getServerConnectionsByProtocolStmt: q.getServerConnectionsByProtocolStmt,
+		getServersStmt:                     q.getServersStmt,
+		getSettingStmt:                     q.getSettingStmt,
+		getUserStmt:                        q.getUserStmt,
+		getUserByUsernameStmt:              q.getUserByUsernameStmt,
+		getUserConnectionsStmt:             q.getUserConnectionsStmt,
+		getUsersStmt:                       q.getUsersStmt,
+		getUsersConnectionCountsStmt:       q.getUsersConnectionCountsStmt,
+		hasUsersStmt:                       q.hasUsersStmt,
+		reorderServersUpdateIDTempStmt:     q.reorderServersUpdateIDTempStmt,
+		reorderUserConnectionsNegativeStmt: q.reorderUserConnectionsNegativeStmt,
+		reorderUserConnectionsUpdateServerIDTempStmt: q.reorderUserConnectionsUpdateServerIDTempStmt,
+		setSettingStmt:       q.setSettingStmt,
+		updateConnectionStmt: q.updateConnectionStmt,
+		updateServerStmt:     q.updateServerStmt,
+		updateUserStmt:       q.updateUserStmt,
 	}
 }

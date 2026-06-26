@@ -5,12 +5,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PRVTPRO/Amnezia-Web-Panel/internal/cache"
 	"github.com/PRVTPRO/Amnezia-Web-Panel/internal/database"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
 )
 
 var store *session.Store
+var settingsCache = cache.NewSettingsCache(30 * time.Second)
 
 func init() {
 	store = session.New(session.Config{
@@ -118,51 +120,66 @@ func TemplateContextMiddleware(c *fiber.Ctx) error {
 	csrfToken, _ := c.Locals("csrf_token").(string)
 	c.Locals("csrf_token", csrfToken)
 
-	kvs, _ := database.Query.GetAllSettings(c.Context())
 	appearance := map[string]interface{}{}
 	captcha := map[string]interface{}{}
 	telegram := map[string]interface{}{}
-	for _, kv := range kvs {
-		if kv.Key == "appearance" {
-			json.Unmarshal([]byte(kv.Value), &appearance)
-		} else if kv.Key == "captcha" {
-			json.Unmarshal([]byte(kv.Value), &captcha)
-		} else if kv.Key == "telegram" {
-			json.Unmarshal([]byte(kv.Value), &telegram)
-		}
+
+	if v, ok := settingsCache.Get("appearance"); ok {
+		json.Unmarshal([]byte(v), &appearance)
+	} else if v, err := database.Query.GetSetting(c.Context(), "appearance"); err == nil && v != "" {
+		json.Unmarshal([]byte(v), &appearance)
+		settingsCache.Set("appearance", v)
+	}
+
+	if v, ok := settingsCache.Get("captcha"); ok {
+		json.Unmarshal([]byte(v), &captcha)
+	} else if v, err := database.Query.GetSetting(c.Context(), "captcha"); err == nil && v != "" {
+		json.Unmarshal([]byte(v), &captcha)
+		settingsCache.Set("captcha", v)
+	}
+
+	if v, ok := settingsCache.Get("telegram"); ok {
+		json.Unmarshal([]byte(v), &telegram)
+	} else if v, err := database.Query.GetSetting(c.Context(), "telegram"); err == nil && v != "" {
+		json.Unmarshal([]byte(v), &telegram)
+		settingsCache.Set("telegram", v)
 	}
 	c.Locals("site_settings", appearance)
 	c.Locals("captcha_settings", captcha)
 	c.Locals("telegram_settings", telegram)
 	c.Locals("bot_running", false)
 
-	langMap := translations[lang]
-	if langMap == nil {
-		langMap = translations["en"]
+	translationsJSON := translationsCache.GetByLang(lang)
+	if translationsJSON == "" {
+		langMap := translations[lang]
+		if langMap == nil {
+			langMap = translations["en"]
+		}
+		if langMap == nil {
+			langMap = make(map[string]string)
+		}
+		b, _ := json.Marshal(langMap)
+		translationsJSON = string(b)
 	}
-	if langMap == nil {
-		langMap = make(map[string]string)
-	}
-	translationsJSON, _ := json.Marshal(langMap)
-	c.Locals("translations_json", string(translationsJSON))
+	c.Locals("translations_json", translationsJSON)
 
-	allTranslationsJSON, _ := json.Marshal(translations)
-	c.Locals("all_translations_json", string(allTranslationsJSON))
+	allTranslationsJSON := translationsCache.GetAll()
+	if allTranslationsJSON == "" {
+		b, _ := json.Marshal(translations)
+		allTranslationsJSON = string(b)
+	}
+	c.Locals("all_translations_json", allTranslationsJSON)
 
 	c.Locals("current_version", "v2.2.0")
 
 	if sess, err := store.Get(c); err == nil {
 		if userId := sess.Get("user_id"); userId != nil {
 			idStr, _ := userId.(string)
-			users, _ := database.Query.GetUsers(c.Context())
-			for _, u := range users {
-				if u.ID == idStr {
-					var ud map[string]interface{}
-					json.Unmarshal([]byte(u.Data), &ud)
-					ud["id"] = u.ID
-					c.Locals("current_user", ud)
-					break
-				}
+			if uData, err := database.Query.GetUser(c.Context(), idStr); err == nil {
+				var ud map[string]interface{}
+				json.Unmarshal([]byte(uData), &ud)
+				ud["id"] = idStr
+				c.Locals("current_user", ud)
 			}
 		}
 	}

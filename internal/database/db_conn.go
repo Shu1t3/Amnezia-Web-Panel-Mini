@@ -24,11 +24,14 @@ func InitDB(dsn string) error {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
 
+	DB.SetMaxOpenConns(1)
+	DB.SetMaxIdleConns(1)
+	DB.SetConnMaxLifetime(0)
+
 	if err := DB.Ping(); err != nil {
 		return fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	// PRAGMA journal_mode=WAL is recommended for SQLite
 	if _, err := DB.Exec("PRAGMA journal_mode=WAL"); err != nil {
 		return fmt.Errorf("failed to set journal_mode: %w", err)
 	}
@@ -37,7 +40,22 @@ func InitDB(dsn string) error {
 		return fmt.Errorf("failed to set foreign_keys: %w", err)
 	}
 
-	// Read and execute schema.sql to ensure tables exist
+	if _, err := DB.Exec("PRAGMA synchronous=NORMAL"); err != nil {
+		return fmt.Errorf("failed to set synchronous: %w", err)
+	}
+
+	if _, err := DB.Exec("PRAGMA cache_size=-8000"); err != nil {
+		return fmt.Errorf("failed to set cache_size: %w", err)
+	}
+
+	if _, err := DB.Exec("PRAGMA temp_store=MEMORY"); err != nil {
+		return fmt.Errorf("failed to set temp_store: %w", err)
+	}
+
+	if _, err := DB.Exec("PRAGMA mmap_size=268435456"); err != nil {
+		return fmt.Errorf("failed to set mmap_size: %w", err)
+	}
+
 	if _, err := DB.Exec(schemaSQL); err != nil {
 		return fmt.Errorf("failed to execute schema: %w", err)
 	}

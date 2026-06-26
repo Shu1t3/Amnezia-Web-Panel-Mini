@@ -24,7 +24,7 @@ type AddConnectionParams struct {
 }
 
 func (q *Queries) AddConnection(ctx context.Context, arg AddConnectionParams) error {
-	_, err := q.db.ExecContext(ctx, addConnection,
+	_, err := q.exec(ctx, q.addConnectionStmt, addConnection,
 		arg.ID,
 		arg.UserID,
 		arg.ServerID,
@@ -40,7 +40,7 @@ INSERT INTO servers (data) VALUES (?) RETURNING id
 `
 
 func (q *Queries) AddServer(ctx context.Context, data string) (int64, error) {
-	row := q.db.QueryRowContext(ctx, addServer, data)
+	row := q.queryRow(ctx, q.addServerStmt, addServer, data)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
@@ -57,7 +57,7 @@ type AddUserParams struct {
 }
 
 func (q *Queries) AddUser(ctx context.Context, arg AddUserParams) error {
-	_, err := q.db.ExecContext(ctx, addUser, arg.ID, arg.Data)
+	_, err := q.exec(ctx, q.addUserStmt, addUser, arg.ID, arg.Data)
 	return err
 }
 
@@ -66,7 +66,7 @@ UPDATE user_connections SET server_id = server_id - 1 WHERE server_id > ?
 `
 
 func (q *Queries) AdjustConnectionServerIDs(ctx context.Context, serverID int64) error {
-	_, err := q.db.ExecContext(ctx, adjustConnectionServerIDs, serverID)
+	_, err := q.exec(ctx, q.adjustConnectionServerIDsStmt, adjustConnectionServerIDs, serverID)
 	return err
 }
 
@@ -75,7 +75,7 @@ DELETE FROM user_connections WHERE id = ?
 `
 
 func (q *Queries) DeleteConnection(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, deleteConnection, id)
+	_, err := q.exec(ctx, q.deleteConnectionStmt, deleteConnection, id)
 	return err
 }
 
@@ -84,7 +84,7 @@ DELETE FROM servers WHERE id = ?
 `
 
 func (q *Queries) DeleteServer(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, deleteServer, id)
+	_, err := q.exec(ctx, q.deleteServerStmt, deleteServer, id)
 	return err
 }
 
@@ -93,7 +93,7 @@ DELETE FROM user_connections WHERE server_id = ?
 `
 
 func (q *Queries) DeleteServerConnections(ctx context.Context, serverID int64) error {
-	_, err := q.db.ExecContext(ctx, deleteServerConnections, serverID)
+	_, err := q.exec(ctx, q.deleteServerConnectionsStmt, deleteServerConnections, serverID)
 	return err
 }
 
@@ -102,7 +102,7 @@ DELETE FROM users WHERE id = ?
 `
 
 func (q *Queries) DeleteUser(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, deleteUser, id)
+	_, err := q.exec(ctx, q.deleteUserStmt, deleteUser, id)
 	return err
 }
 
@@ -111,7 +111,7 @@ DELETE FROM user_connections WHERE user_id = ?
 `
 
 func (q *Queries) DeleteUserConnections(ctx context.Context, userID string) error {
-	_, err := q.db.ExecContext(ctx, deleteUserConnections, userID)
+	_, err := q.exec(ctx, q.deleteUserConnectionsStmt, deleteUserConnections, userID)
 	return err
 }
 
@@ -120,7 +120,7 @@ SELECT key, value FROM kv
 `
 
 func (q *Queries) GetAllSettings(ctx context.Context) ([]Kv, error) {
-	rows, err := q.db.QueryContext(ctx, getAllSettings)
+	rows, err := q.query(ctx, q.getAllSettingsStmt, getAllSettings)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ SELECT data FROM user_connections
 `
 
 func (q *Queries) GetAllUserConnections(ctx context.Context) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, getAllUserConnections)
+	rows, err := q.query(ctx, q.getAllUserConnectionsStmt, getAllUserConnections)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ type GetConnectionByClientParams struct {
 }
 
 func (q *Queries) GetConnectionByClient(ctx context.Context, arg GetConnectionByClientParams) (string, error) {
-	row := q.db.QueryRowContext(ctx, getConnectionByClient, arg.ServerID, arg.Protocol, arg.ClientID)
+	row := q.queryRow(ctx, q.getConnectionByClientStmt, getConnectionByClient, arg.ServerID, arg.Protocol, arg.ClientID)
 	var data string
 	err := row.Scan(&data)
 	return data, err
@@ -191,7 +191,7 @@ SELECT data FROM servers WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetServer(ctx context.Context, id int64) (string, error) {
-	row := q.db.QueryRowContext(ctx, getServer, id)
+	row := q.queryRow(ctx, q.getServerStmt, getServer, id)
 	var data string
 	err := row.Scan(&data)
 	return data, err
@@ -202,7 +202,7 @@ SELECT data FROM user_connections WHERE server_id = ?
 `
 
 func (q *Queries) GetServerConnections(ctx context.Context, serverID int64) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, getServerConnections, serverID)
+	rows, err := q.query(ctx, q.getServerConnectionsStmt, getServerConnections, serverID)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +234,7 @@ type GetServerConnectionsByProtocolParams struct {
 }
 
 func (q *Queries) GetServerConnectionsByProtocol(ctx context.Context, arg GetServerConnectionsByProtocolParams) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, getServerConnectionsByProtocol, arg.ServerID, arg.Protocol)
+	rows, err := q.query(ctx, q.getServerConnectionsByProtocolStmt, getServerConnectionsByProtocol, arg.ServerID, arg.Protocol)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +261,7 @@ SELECT id, data FROM servers ORDER BY id
 `
 
 func (q *Queries) GetServers(ctx context.Context) ([]Server, error) {
-	rows, err := q.db.QueryContext(ctx, getServers)
+	rows, err := q.query(ctx, q.getServersStmt, getServers)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +288,7 @@ SELECT value FROM kv WHERE key = ? LIMIT 1
 `
 
 func (q *Queries) GetSetting(ctx context.Context, key string) (string, error) {
-	row := q.db.QueryRowContext(ctx, getSetting, key)
+	row := q.queryRow(ctx, q.getSettingStmt, getSetting, key)
 	var value string
 	err := row.Scan(&value)
 	return value, err
@@ -299,21 +299,21 @@ SELECT data FROM users WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id string) (string, error) {
-	row := q.db.QueryRowContext(ctx, getUser, id)
+	row := q.queryRow(ctx, q.getUserStmt, getUser, id)
 	var data string
 	err := row.Scan(&data)
 	return data, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT data FROM users WHERE json_extract(data, '$.username') = ? LIMIT 1
+SELECT id, data FROM users WHERE json_extract(data, '$.username') = ? LIMIT 1
 `
 
-func (q *Queries) GetUserByUsername(ctx context.Context, data string) (string, error) {
-	row := q.db.QueryRowContext(ctx, getUserByUsername, data)
-	var data_2 string
-	err := row.Scan(&data_2)
-	return data_2, err
+func (q *Queries) GetUserByUsername(ctx context.Context, data string) (User, error) {
+	row := q.queryRow(ctx, q.getUserByUsernameStmt, getUserByUsername, data)
+	var i User
+	err := row.Scan(&i.ID, &i.Data)
+	return i, err
 }
 
 const getUserConnections = `-- name: GetUserConnections :many
@@ -321,7 +321,7 @@ SELECT data FROM user_connections WHERE user_id = ?
 `
 
 func (q *Queries) GetUserConnections(ctx context.Context, userID string) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, getUserConnections, userID)
+	rows, err := q.query(ctx, q.getUserConnectionsStmt, getUserConnections, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +348,7 @@ SELECT id, data FROM users
 `
 
 func (q *Queries) GetUsers(ctx context.Context) ([]User, error) {
-	rows, err := q.db.QueryContext(ctx, getUsers)
+	rows, err := q.query(ctx, q.getUsersStmt, getUsers)
 	if err != nil {
 		return nil, err
 	}
@@ -370,12 +370,46 @@ func (q *Queries) GetUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const getUsersConnectionCounts = `-- name: GetUsersConnectionCounts :many
+SELECT user_id, COUNT(*) as count
+FROM user_connections
+GROUP BY user_id
+`
+
+type GetUsersConnectionCountsRow struct {
+	UserID string `json:"user_id"`
+	Count  int64  `json:"count"`
+}
+
+func (q *Queries) GetUsersConnectionCounts(ctx context.Context) ([]GetUsersConnectionCountsRow, error) {
+	rows, err := q.query(ctx, q.getUsersConnectionCountsStmt, getUsersConnectionCounts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUsersConnectionCountsRow
+	for rows.Next() {
+		var i GetUsersConnectionCountsRow
+		if err := rows.Scan(&i.UserID, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const hasUsers = `-- name: HasUsers :one
 SELECT COUNT(*) FROM users
 `
 
 func (q *Queries) HasUsers(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, hasUsers)
+	row := q.queryRow(ctx, q.hasUsersStmt, hasUsers)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -391,7 +425,7 @@ type ReorderServersUpdateIDTempParams struct {
 }
 
 func (q *Queries) ReorderServersUpdateIDTemp(ctx context.Context, arg ReorderServersUpdateIDTempParams) error {
-	_, err := q.db.ExecContext(ctx, reorderServersUpdateIDTemp, arg.ID, arg.ID_2)
+	_, err := q.exec(ctx, q.reorderServersUpdateIDTempStmt, reorderServersUpdateIDTemp, arg.ID, arg.ID_2)
 	return err
 }
 
@@ -400,7 +434,7 @@ UPDATE user_connections SET server_id = -server_id - 1
 `
 
 func (q *Queries) ReorderUserConnectionsNegative(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, reorderUserConnectionsNegative)
+	_, err := q.exec(ctx, q.reorderUserConnectionsNegativeStmt, reorderUserConnectionsNegative)
 	return err
 }
 
@@ -414,7 +448,7 @@ type ReorderUserConnectionsUpdateServerIDTempParams struct {
 }
 
 func (q *Queries) ReorderUserConnectionsUpdateServerIDTemp(ctx context.Context, arg ReorderUserConnectionsUpdateServerIDTempParams) error {
-	_, err := q.db.ExecContext(ctx, reorderUserConnectionsUpdateServerIDTemp, arg.ServerID, arg.ServerID_2)
+	_, err := q.exec(ctx, q.reorderUserConnectionsUpdateServerIDTempStmt, reorderUserConnectionsUpdateServerIDTemp, arg.ServerID, arg.ServerID_2)
 	return err
 }
 
@@ -429,7 +463,7 @@ type SetSettingParams struct {
 }
 
 func (q *Queries) SetSetting(ctx context.Context, arg SetSettingParams) error {
-	_, err := q.db.ExecContext(ctx, setSetting, arg.Key, arg.Value)
+	_, err := q.exec(ctx, q.setSettingStmt, setSetting, arg.Key, arg.Value)
 	return err
 }
 
@@ -443,7 +477,7 @@ type UpdateConnectionParams struct {
 }
 
 func (q *Queries) UpdateConnection(ctx context.Context, arg UpdateConnectionParams) error {
-	_, err := q.db.ExecContext(ctx, updateConnection, arg.Data, arg.ID)
+	_, err := q.exec(ctx, q.updateConnectionStmt, updateConnection, arg.Data, arg.ID)
 	return err
 }
 
@@ -457,7 +491,7 @@ type UpdateServerParams struct {
 }
 
 func (q *Queries) UpdateServer(ctx context.Context, arg UpdateServerParams) error {
-	_, err := q.db.ExecContext(ctx, updateServer, arg.Data, arg.ID)
+	_, err := q.exec(ctx, q.updateServerStmt, updateServer, arg.Data, arg.ID)
 	return err
 }
 
@@ -471,6 +505,6 @@ type UpdateUserParams struct {
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
-	_, err := q.db.ExecContext(ctx, updateUser, arg.Data, arg.ID)
+	_, err := q.exec(ctx, q.updateUserStmt, updateUser, arg.Data, arg.ID)
 	return err
 }
