@@ -6,14 +6,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 	"strconv"
+	"strings"
+	"time"
 
+	"github.com/PRVTPRO/Amnezia-Web-Panel/internal/cache"
 	"github.com/PRVTPRO/Amnezia-Web-Panel/internal/database"
 	"github.com/PRVTPRO/Amnezia-Web-Panel/internal/managers"
 	"github.com/PRVTPRO/Amnezia-Web-Panel/internal/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
+
+var clientsCache = cache.NewClientCache(30 * time.Second)
 
 func generateVpnLink(config string) string {
 	b64 := base64.StdEncoding.EncodeToString([]byte(config))
@@ -29,34 +35,45 @@ func GetConnections(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid server ID"})
 	}
+	serverIDStr := strconv.FormatInt(serverID, 10)
 	protocol := c.Query("protocol", "awg2")
-
-	dataStr, err := database.Query.GetServer(context.Background(), serverID)
-	if err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Server not found"})
-	}
-
-	var serverData models.ServerData
-	if err := json.Unmarshal([]byte(dataStr), &serverData); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to parse server data"})
-	}
-
-	ssh := managers.NewSSHManager(serverData.Host, serverData.SSHPort, serverData.Username, serverData.Password, serverData.PrivateKey)
-	if err := ssh.Connect(); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": fmt.Sprintf("SSH connection failed: %v", err)})
-	}
-	defer ssh.Disconnect()
+	sortBy := c.Query("sort", "name")
+	order := c.Query("order", "asc")
+	filter := strings.ToLower(c.Query("filter", ""))
 
 	var clients []map[string]interface{}
-	switch protocol {
-	case "telemt":
-		clients = managers.NewTelemtManager(ssh).GetClients()
-	case "wireguard":
-		clients = managers.NewWireGuardManager(ssh).GetClients()
-	case "awg2":
-		clients = managers.NewAWGManager(ssh).GetClients(protocol)
-	default:
-		clients = []map[string]interface{}{}
+
+	if cached, ok := clientsCache.Get(serverIDStr + ":" + protocol); ok {
+		clients = cached
+	} else {
+		dataStr, err := database.Query.GetServer(context.Background(), serverID)
+		if err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "Server not found"})
+		}
+
+		var serverData models.ServerData
+		if err := json.Unmarshal([]byte(dataStr), &serverData); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to parse server data"})
+		}
+
+		ssh := managers.NewSSHManager(serverData.Host, serverData.SSHPort, serverData.Username, serverData.Password, serverData.PrivateKey)
+		if err := ssh.Connect(); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": fmt.Sprintf("SSH connection failed: %v", err)})
+		}
+		defer ssh.Disconnect()
+
+		switch protocol {
+		case "telemt":
+			clients = managers.NewTelemtManager(ssh).GetClients()
+		case "wireguard":
+			clients = managers.NewWireGuardManager(ssh).GetClients()
+		case "awg2":
+			clients = managers.NewAWGManager(ssh).GetClients(protocol)
+		default:
+			clients = []map[string]interface{}{}
+		}
+
+		clientsCache.Set(serverIDStr+":"+protocol, clients)
 	}
 
 	userConnsStrs, _ := database.Query.GetServerConnectionsByProtocol(context.Background(), database.GetServerConnectionsByProtocolParams{
@@ -83,11 +100,49 @@ func GetConnections(c *fiber.Ctx) error {
 						client["assigned_user"] = userData["username"]
 						client["assigned_user_id"] = uid
 					}
+					if uc.ExpiresAt != "" {
+						client["expires_at"] = uc.ExpiresAt
+					}
 					break
 				}
 			}
 		}
 	}
+
+	if filter != "" {
+		var filtered []map[string]interface{}
+		for _, client := range clients {
+			name, _ := client["clientName"].(string)
+			if strings.Contains(strings.ToLower(name), filter) {
+				filtered = append(filtered, client)
+			}
+		}
+		clients = filtered
+	}
+
+	sort.Slice(clients, func(i, j int) bool {
+		var valI, valJ interface{}
+		switch sortBy {
+		case "name":
+			valI, _ = clients[i]["clientName"].(string)
+			valJ, _ = clients[j]["clientName"].(string)
+		case "created":
+			valI, _ = clients[i]["creationDate"].(string)
+			valJ, _ = clients[j]["creationDate"].(string)
+		case "ip":
+			valI, _ = clients[i]["clientIp"].(string)
+			valJ, _ = clients[j]["clientIp"].(string)
+		default:
+			valI, _ = clients[i]["clientName"].(string)
+			valJ, _ = clients[j]["clientName"].(string)
+		}
+		sI, _ := valI.(string)
+		sJ, _ := valJ.(string)
+		if order == "desc" {
+			return sI > sJ
+		}
+		return sI < sJ
+	})
 
 	return c.JSON(fiber.Map{"clients": clients})
 }
@@ -168,6 +223,9 @@ func AddConnection(c *fiber.Ctx) error {
 				Name:      req.Name,
 				CreatedAt: "now",
 			}
+			if req.ExpiresAt != "" {
+				connData.ExpiresAt = req.ExpiresAt
+			}
 			connBytes, _ := json.Marshal(connData)
 			if err := database.Query.AddConnection(context.Background(), database.AddConnectionParams{
 				ID:       connID,
@@ -181,6 +239,9 @@ func AddConnection(c *fiber.Ctx) error {
 			}
 		}
 	}
+
+	serverIDStr := strconv.FormatInt(serverID, 10)
+	clientsCache.Invalidate(serverIDStr + ":" + req.Protocol)
 
 	return c.JSON(result)
 }
@@ -226,6 +287,9 @@ func RemoveConnection(c *fiber.Ctx) error {
 	default:
 		return c.Status(400).JSON(fiber.Map{"error": "Unknown protocol"})
 	}
+
+	serverIDStr := strconv.FormatInt(serverID, 10)
+	clientsCache.Invalidate(serverIDStr + ":" + req.Protocol)
 
 	userConnsStrs, _ := database.Query.GetServerConnectionsByProtocol(context.Background(), database.GetServerConnectionsByProtocolParams{
 		ServerID: serverID,
@@ -310,6 +374,105 @@ func GetConnectionConfig(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"config": config, "vpn_link": vpnLink})
+}
+
+func GetConnectionQR(c *fiber.Ctx) error {
+	if !CheckAdmin(c) {
+		return c.Status(403).JSON(fiber.Map{"error": "Forbidden"})
+	}
+
+	serverID, err := strconv.ParseInt(c.Params("server_id"), 10, 64)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid server ID"})
+	}
+
+	clientID := c.Params("client_id")
+	if clientID == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Client ID required"})
+	}
+
+	dataStr, err := database.Query.GetServer(context.Background(), serverID)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Server not found"})
+	}
+
+	var serverData models.ServerData
+	if err := json.Unmarshal([]byte(dataStr), &serverData); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to parse server data"})
+	}
+
+	ssh := managers.NewSSHManager(serverData.Host, serverData.SSHPort, serverData.Username, serverData.Password, serverData.PrivateKey)
+	if err := ssh.Connect(); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": fmt.Sprintf("SSH connection failed: %v", err)})
+	}
+	defer ssh.Disconnect()
+
+	protocol := c.Query("protocol", "awg2")
+	var config string
+	switch protocol {
+	case "wireguard":
+		config = managers.NewWireGuardManager(ssh).GetClientConfig(clientID, serverData.Host)
+	case "awg2":
+		port := "55424"
+		if p, ok := serverData.Protocols["awg2"].(map[string]interface{}); ok {
+			if pt, ok2 := p["port"].(string); ok2 {
+				port = pt
+			}
+		}
+		config = managers.NewAWGManager(ssh).GetClientConfig(protocol, clientID, serverData.Host, port)
+	default:
+		return c.Status(400).JSON(fiber.Map{"error": "Protocol not supported for QR"})
+	}
+
+	if config == "" || config == "Not found" {
+		return c.Status(404).JSON(fiber.Map{"error": "Client config not found"})
+	}
+
+	qrData, err := managers.GenerateQRCodeBase64(config)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate QR code"})
+	}
+
+	return c.JSON(fiber.Map{"qr": qrData, "config": config})
+}
+
+func SetConnectionExpiry(c *fiber.Ctx) error {
+	if !CheckAdmin(c) {
+		return c.Status(403).JSON(fiber.Map{"error": "Forbidden"})
+	}
+
+	serverID, err := strconv.ParseInt(c.Params("server_id"), 10, 64)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid server ID"})
+	}
+
+	var req struct {
+		ClientID  string `json:"client_id"`
+		ExpiresAt string `json:"expires_at"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	userConnsStrs, _ := database.Query.GetServerConnections(context.Background(), serverID)
+	for _, ucStr := range userConnsStrs {
+		var uc models.UserConnectionData
+		if err := json.Unmarshal([]byte(ucStr), &uc); err == nil {
+			if uc.ClientID == req.ClientID {
+				uc.ExpiresAt = req.ExpiresAt
+				ucBytes, _ := json.Marshal(uc)
+				database.Query.UpdateConnection(context.Background(), database.UpdateConnectionParams{
+					ID:   uc.ID,
+					Data: string(ucBytes),
+				})
+				serverIDStr := strconv.FormatInt(serverID, 10)
+				clientsCache.Invalidate(serverIDStr + ":" + uc.Protocol)
+				return c.JSON(fiber.Map{"status": "success", "expires_at": req.ExpiresAt})
+			}
+		}
+	}
+
+	return c.Status(404).JSON(fiber.Map{"error": "Connection not found"})
 }
 
 func ToggleConnection(c *fiber.Ctx) error {

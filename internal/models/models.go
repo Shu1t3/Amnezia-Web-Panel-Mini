@@ -19,6 +19,8 @@ type UserConnectionData struct {
 	ClientID  string `json:"client_id"`
 	Name      string `json:"name"`
 	CreatedAt string `json:"created_at"`
+	ExpiresAt string `json:"expires_at,omitempty"`
+	Status    string `json:"status,omitempty"`
 }
 
 type AddServerRequest struct {
@@ -80,6 +82,7 @@ type AddConnectionRequest struct {
 	Protocol       string `json:"protocol"`
 	Name           string `json:"name"`
 	UserID         string `json:"user_id"`
+	ExpiresAt      string `json:"expires_at,omitempty"`
 	TelemtQuota    string `json:"telemt_quota"`
 	TelemtMaxIps   int    `json:"telemt_max_ips"`
 	TelemtExpiry   string `json:"telemt_expiry"`

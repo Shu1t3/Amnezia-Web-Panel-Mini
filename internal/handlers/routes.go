@@ -71,6 +71,8 @@ func SetupRoutes(app *fiber.App) {
 	servers.Post("/:server_id/connections/edit", EditConnection)
 	servers.Post("/:server_id/connections/config", GetConnectionConfig)
 	servers.Post("/:server_id/connections/toggle", ToggleConnection)
+	servers.Get("/:server_id/connections/:client_id/qr", GetConnectionQR)
+	servers.Post("/:server_id/connections/expire", SetConnectionExpiry)
 
 	users := api.Group("/users", AuthMiddleware)
 	users.Get("/", GetUsers)
